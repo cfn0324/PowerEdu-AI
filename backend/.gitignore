@@ -1,0 +1,43 @@
+
+---
+
+### 示例 `.gitignore` 文件
+
+
+# Python-related
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.env
+*.venv/
+.env/
+.venv/
+
+# Django-related
+db.sqlite3
+*.log
+*.pot
+*.pyc
+media/
+staticfiles/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Virtual environments
+venv/
+ENV/
+env/
+
+# Packages
+*.egg
+*.egg-info/
+dist/
+build/

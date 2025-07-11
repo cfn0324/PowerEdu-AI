@@ -1,0 +1,7 @@
+Django==4.2.7
+django-cors-headers==4.3.1
+django-mdeditor==0.1.20
+django-ninja==1.0.1
+Pillow==10.1.0
+pycryptodome==3.19.0
+PyJWT==2.8.0
