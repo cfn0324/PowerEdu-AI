@@ -55,14 +55,15 @@ Write-Host "✅ 平台启动完成！" -ForegroundColor Green
 Write-Host ""
 Write-Host "📱 访问地址：" -ForegroundColor Cyan
 Write-Host "  主平台: http://localhost:5173" -ForegroundColor White
+Write-Host "  AI预测: http://localhost:5173/prediction" -ForegroundColor White
 Write-Host "  后端API: http://localhost:8000" -ForegroundColor White
 Write-Host "  管理后台: http://localhost:8000/admin" -ForegroundColor White
+Write-Host "  API文档: http://localhost:8000/api/docs" -ForegroundColor White
 Write-Host ""
 Write-Host "🔑 管理员账户：" -ForegroundColor Cyan
 Write-Host "  用户名: admin" -ForegroundColor White
 Write-Host "  密码: 123456" -ForegroundColor White
 Write-Host ""
-Write-Host "💡 如需启动独立AI预测系统，请运行：" -ForegroundColor Yellow
-Write-Host "  cd standalone_ai && python app.py" -ForegroundColor White
+Write-Host "🎯 AI预测功能已完全集成到主平台中！" -ForegroundColor Green
 
 Read-Host "按回车键退出"

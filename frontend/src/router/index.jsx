@@ -4,7 +4,7 @@ import Layout from "../pages/layout";
 import Detail from "../pages/detail";
 import Profile from "../pages/profile";
 import Courses from "../pages/courses";
-import Prediction from "../pages/prediction/index_simple";
+import PredictionDashboard from "../pages/prediction/PredictionDashboard";
 
 const router = createBrowserRouter([
   {
@@ -29,7 +29,7 @@ const router = createBrowserRouter([
       },
       {
         path: "prediction/",
-        element: <Prediction/>
+        element: <PredictionDashboard/>
       }
     ],
   },

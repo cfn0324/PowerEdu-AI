@@ -112,6 +112,60 @@ class ModelManager:
         else:
             print("❌ 所有模型训练失败")
     
+    def train_core_models(self, X_train, y_train, X_test, y_test):
+        """训练核心模型 - 快速版本，只训练关键模型
+        
+        Args:
+            X_train: 训练特征
+            y_train: 训练目标
+            X_test: 测试特征
+            y_test: 测试目标
+        """
+        print("🚀 快速训练核心模型...")
+        
+        # 只训练几个最重要的模型以节省时间
+        core_models = ['LinearRegression', 'RandomForest']
+        
+        for name in core_models:
+            if name in self.models:
+                print(f"  训练 {name}...")
+                try:
+                    model = self.models[name]
+                    
+                    # 训练模型
+                    model.fit(X_train, y_train)
+                    
+                    # 预测
+                    y_pred = model.predict(X_test)
+                    
+                    # 评估性能
+                    mse = mean_squared_error(y_test, y_pred)
+                    r2 = r2_score(y_test, y_pred)
+                    
+                    self.performance[name] = {
+                        'mse': mse,
+                        'r2': r2,
+                        'rmse': np.sqrt(mse)
+                    }
+                    
+                    print(f"    {name}: MSE={mse:.6f}, R²={r2:.6f}")
+                    
+                except Exception as e:
+                    print(f"    ❌ {name} 训练失败: {e}")
+                    continue
+        
+        # 选择最佳模型
+        if self.performance:
+            self.best_model_name = min(self.performance.keys(), 
+                                     key=lambda k: self.performance[k]['mse'])
+            print(f"✅ 最佳模型: {self.best_model_name}")
+            self.is_trained = True
+        else:
+            print("❌ 没有模型成功训练")
+            self.is_trained = False
+        
+        return self.is_trained
+
     def predict(self, X):
         """使用最佳模型进行预测
         

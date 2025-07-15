@@ -129,9 +129,24 @@ MEDIA_URL = "media/"
 
 MEDIA_ROOT = BASE_DIR / "media"
 
-CORS_ALLOWED_ORIGINS = ['http://127.0.0.1:7890']
-
+# CORS配置 - 允许前端访问API
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',      # Vite开发服务器
+    'http://127.0.0.1:5173',      # 本地访问
+    'http://localhost:3000',      # 备用端口
+    'http://127.0.0.1:3000',      # 备用端口
+]
 
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_HEADERS = ('*')
+CORS_ALLOW_ALL_ORIGINS = True  # 开发环境允许所有来源
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
