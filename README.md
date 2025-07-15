@@ -232,6 +232,7 @@ graph LR
     D --> G[可视化引擎]
     G --> A
 ```
+```
 │   │   │   ├── views.py       # 用户API视图
 │   │   │   └── schemas.py     # 数据验证模式
 │   │   ├── 📚 course/         # 课程管理系统
@@ -273,6 +274,7 @@ graph LR
         ├── 🛣️ router/       # 路由配置
         ├── 🔧 service/      # API服务层
         └── 📊 stores/       # 状态管理
+```
 ```
     ├── 原型设计/
     ├── 系统设计/
