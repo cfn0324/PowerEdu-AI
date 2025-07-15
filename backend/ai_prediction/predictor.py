@@ -55,7 +55,9 @@ class LoadPredictor:
             'wind_speed': wind_speed,
             'rainfall': rainfall,
             'hour': timestamp.hour,
-            'day_of_week': timestamp.weekday(),
+            'minute': timestamp.minute,  # 添加缺失的minute字段
+            'weekday': timestamp.weekday(),
+            'day_of_week': timestamp.weekday(),  # 保持兼容性
             'month': timestamp.month,
             'is_holiday': self._is_holiday(timestamp),
             'is_weekend': 1 if timestamp.weekday() >= 5 else 0
@@ -69,9 +71,10 @@ class LoadPredictor:
         
         # 预测
         if model_name is None:
+            prediction = self.model_manager.predict(X)
             model_name = self.model_manager.best_model_name
-        
-        prediction = self.model_manager.predict(X, model_name)
+        else:
+            prediction = self.model_manager.predict_with_model(X, model_name)
         
         return {
             'timestamp': timestamp.isoformat(),
@@ -100,7 +103,9 @@ class LoadPredictor:
         if 'timestamp' in df.columns:
             df['timestamp'] = pd.to_datetime(df['timestamp'])
             df['hour'] = df['timestamp'].dt.hour
-            df['day_of_week'] = df['timestamp'].dt.weekday
+            df['minute'] = df['timestamp'].dt.minute  # 添加缺失的minute字段
+            df['weekday'] = df['timestamp'].dt.weekday  # 添加weekday字段
+            df['day_of_week'] = df['timestamp'].dt.weekday  # 保持兼容性
             df['month'] = df['timestamp'].dt.month
             df['is_holiday'] = df['timestamp'].apply(self._is_holiday)
             df['is_weekend'] = (df['timestamp'].dt.weekday >= 5).astype(int)
@@ -110,9 +115,10 @@ class LoadPredictor:
         
         # 预测
         if model_name is None:
+            predictions = self.model_manager.predict(X)
             model_name = self.model_manager.best_model_name
-        
-        predictions = self.model_manager.predict(X, model_name)
+        else:
+            predictions = self.model_manager.predict_with_model(X, model_name)
         
         # 构建结果
         results = []
@@ -179,7 +185,9 @@ class LoadPredictor:
                 'wind_speed': wind_speed,
                 'rainfall': rainfall,
                 'hour': timestamp.hour,
-                'day_of_week': timestamp.weekday(),
+                'minute': timestamp.minute,  # 添加缺失的minute字段
+                'weekday': timestamp.weekday(),  # 添加weekday字段
+                'day_of_week': timestamp.weekday(),  # 保持兼容性
                 'month': timestamp.month,
                 'is_holiday': self._is_holiday(timestamp),
                 'is_weekend': 1 if timestamp.weekday() >= 5 else 0

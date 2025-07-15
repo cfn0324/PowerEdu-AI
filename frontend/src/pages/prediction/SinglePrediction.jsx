@@ -24,19 +24,29 @@ import {
 } from '@ant-design/icons';
 import moment from 'moment';
 import { predictionApi } from '../../service/prediction';
+import useAISystem from '../../hooks/useAISystem';
+import AISystemStatus from '../../components/common/AISystemStatus';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 
 const SinglePrediction = () => {
   const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
   const [predicting, setPredicting] = useState(false);
-  const [models, setModels] = useState([]);
   const [result, setResult] = useState(null);
+  
+  // 使用AI系统管理hook
+  const {
+    systemStatus,
+    models,
+    loading,
+    initializing,
+    initializeSystem,
+    loadModels,
+    isSystemReady
+  } = useAISystem();
 
   useEffect(() => {
-    loadModels();
     // 设置默认值
     form.setFieldsValue({
       timestamp: moment(),
@@ -46,20 +56,6 @@ const SinglePrediction = () => {
       rainfall: 0.0
     });
   }, []);
-
-  const loadModels = async () => {
-    try {
-      setLoading(true);
-      const response = await predictionApi.getModels();
-      if (response.success) {
-        setModels(response.data);
-      }
-    } catch (error) {
-      message.error('加载模型列表失败');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handlePredict = async (values) => {
     try {
@@ -77,17 +73,40 @@ const SinglePrediction = () => {
         model_name: values.model_name
       };
 
+      console.log('🔮 发送预测请求:', predictData);
       const response = await predictionApi.predictSingle(predictData);
+      console.log('📊 预测响应:', response.data);
       
-      if (response.success) {
-        setResult(response.data);
+      if (response.data && response.data.success) {
+        setResult(response.data.data);
         message.success('预测完成！');
+        console.log('✅ 预测结果:', response.data.data);
       } else {
-        message.error(response.error || '预测失败');
+        console.log('❌ 预测失败:', response.data);
+        const errorMsg = response.data?.error || '预测失败';
+        message.error(`预测失败: ${errorMsg}`);
+        // 显示详细错误信息供调试
+        console.error('详细错误信息:', response.data);
       }
     } catch (error) {
-      console.error('预测失败:', error);
-      message.error('预测请求失败，请稍后重试');
+      console.error('❌ 预测异常:', error);
+      let errorMessage = '预测请求失败，请稍后重试';
+      
+      if (error.response) {
+        // 服务器响应错误
+        console.error('服务器响应错误:', error.response.data);
+        errorMessage = `服务器错误: ${error.response.data?.error || error.response.statusText}`;
+      } else if (error.request) {
+        // 网络错误
+        console.error('网络请求错误:', error.request);
+        errorMessage = '网络连接失败，请检查服务器状态';
+      } else {
+        // 其他错误
+        console.error('其他错误:', error.message);
+        errorMessage = `请求错误: ${error.message}`;
+      }
+      
+      message.error(errorMessage);
     } finally {
       setPredicting(false);
     }
@@ -140,6 +159,16 @@ const SinglePrediction = () => {
               </Button>
             }
           >
+            {/* 系统状态检查 */}
+            <AISystemStatus
+              systemStatus={systemStatus}
+              models={models}
+              loading={loading}
+              initializing={initializing}
+              onInitialize={initializeSystem}
+              onLoadModels={loadModels}
+            />
+
             <Form
               form={form}
               layout="vertical"
@@ -231,11 +260,43 @@ const SinglePrediction = () => {
                 </Col>
               </Row>
 
-              <Form.Item label="选择模型" name="model_name">
-                <Select placeholder="选择预测模型（留空使用最佳模型）" allowClear>
+              <Form.Item 
+                label="选择模型" 
+                name="model_name"
+                extra={
+                  models.length === 0 && systemStatus?.initialized 
+                    ? "暂无可用模型，请刷新页面或重新初始化系统" 
+                    : `共有 ${models.length} 个模型可选，留空将使用最佳模型`
+                }
+              >
+                <Select 
+                  placeholder={
+                    loading ? "正在加载模型..." : 
+                    models.length === 0 ? "暂无可用模型" : 
+                    "选择预测模型（留空使用最佳模型）"
+                  }
+                  allowClear
+                  loading={loading}
+                  disabled={!systemStatus?.initialized || models.length === 0}
+                  notFoundContent={
+                    !systemStatus?.initialized ? "请先初始化系统" : "暂无可用模型"
+                  }
+                >
                   {models.map((model) => (
                     <Option key={model.name} value={model.name}>
-                      {model.name} {model.is_best && '(最佳)'}
+                      <Space>
+                        <span>{model.name}</span>
+                        {model.is_best && (
+                          <span style={{ color: '#52c41a', fontSize: '12px' }}>
+                            (最佳)
+                          </span>
+                        )}
+                        {model.performance && (
+                          <span style={{ color: '#999', fontSize: '12px' }}>
+                            R²: {model.performance.r2?.toFixed(3)}
+                          </span>
+                        )}
+                      </Space>
                     </Option>
                   ))}
                 </Select>
@@ -248,14 +309,30 @@ const SinglePrediction = () => {
                   type="primary"
                   htmlType="submit"
                   loading={predicting}
+                  disabled={!isSystemReady || initializing}
                   icon={<CalculatorOutlined />}
                   size="large"
                 >
-                  开始预测
+                  {!systemStatus?.initialized ? '请先初始化系统' : 
+                   models.length === 0 ? '暂无可用模型' : '开始预测'}
                 </Button>
-                <Button onClick={handleReset} size="large">
+                <Button 
+                  onClick={handleReset} 
+                  size="large"
+                  disabled={predicting || initializing}
+                >
                   重置
                 </Button>
+                {systemStatus?.initialized && (
+                  <Button 
+                    onClick={loadModels} 
+                    size="large"
+                    loading={loading}
+                    disabled={predicting || initializing}
+                  >
+                    刷新模型
+                  </Button>
+                )}
               </Space>
             </Form>
           </Card>
@@ -311,7 +388,7 @@ const SinglePrediction = () => {
                 </div>
 
                 {/* 可视化图表 */}
-                {result.visualization && (
+                {result.visualization && result.visualization.html ? (
                   <div>
                     <Title level={4}>预测分析</Title>
                     <div 
@@ -321,8 +398,29 @@ const SinglePrediction = () => {
                       style={{ 
                         border: '1px solid #d9d9d9',
                         borderRadius: '6px',
-                        overflow: 'hidden'
+                        overflow: 'hidden',
+                        minHeight: '400px'
                       }}
+                    />
+                  </div>
+                ) : result.visualization && result.visualization.error ? (
+                  <div>
+                    <Title level={4}>预测分析</Title>
+                    <Alert
+                      type="warning"
+                      message="可视化生成失败"
+                      description={`错误信息: ${result.visualization.error}`}
+                      showIcon
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <Title level={4}>预测分析</Title>
+                    <Alert
+                      type="info"
+                      message="暂无可视化数据"
+                      description="预测完成，但可视化图表生成中..."
+                      showIcon
                     />
                   </div>
                 )}

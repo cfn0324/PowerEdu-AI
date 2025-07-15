@@ -23,33 +23,29 @@ import {
 } from '@ant-design/icons';
 import moment from 'moment';
 import { predictionApi } from '../../service/prediction';
+import useAISystem from '../../hooks/useAISystem';
+import AISystemStatus from '../../components/common/AISystemStatus';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 const { TabPane } = Tabs;
 
 const DayAheadPrediction = () => {
-  const [loading, setLoading] = useState(false);
   const [predicting, setPredicting] = useState(false);
-  const [models, setModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState(null);
   const [targetDate, setTargetDate] = useState(moment().add(1, 'day'));
   const [results, setResults] = useState(null);
-
-  useEffect(() => {
-    loadModels();
-  }, []);
-
-  const loadModels = async () => {
-    try {
-      const response = await predictionApi.getModels();
-      if (response.success) {
-        setModels(response.data);
-      }
-    } catch (error) {
-      message.error('加载模型列表失败');
-    }
-  };
+  
+  // 使用AI系统管理hook
+  const {
+    systemStatus,
+    models,
+    loading,
+    initializing,
+    initializeSystem,
+    loadModels,
+    isSystemReady
+  } = useAISystem();
 
   const handlePredict = async () => {
     try {
@@ -60,16 +56,36 @@ const DayAheadPrediction = () => {
         model_name: selectedModel
       };
 
+      console.log('🔮 发送日前预测请求:', predictData);
       const response = await predictionApi.predictDayAhead(predictData);
+      console.log('📊 日前预测响应完整数据:', response.data);
       
-      if (response.success) {
-        setResults(response.data);
-        message.success('日前预测完成！共生成96个时间点的预测结果');
+      if (response.data && response.data.success) {
+        const resultData = response.data.data;
+        console.log('✅ 预测成功，分析结果数据:', resultData);
+        
+        // 验证数据结构
+        if (!resultData.predictions || !Array.isArray(resultData.predictions)) {
+          console.error('❌ 预测数据格式错误:', resultData);
+          message.error('预测数据格式错误');
+          return;
+        }
+        
+        if (!resultData.visualization) {
+          console.warn('⚠️ 没有可视化数据');
+        } else {
+          console.log('📈 可视化数据结构:', resultData.visualization);
+          console.log('📈 主图表数据:', resultData.visualization.main_chart);
+        }
+        
+        setResults(resultData);
+        message.success(`日前预测完成！共生成${resultData.predictions.length}个时间点的预测结果`);
       } else {
-        message.error(response.error || '日前预测失败');
+        console.error('❌ 日前预测失败:', response.data);
+        message.error(response.data?.error || '日前预测失败');
       }
     } catch (error) {
-      console.error('日前预测失败:', error);
+      console.error('❌ 日前预测请求失败:', error);
       message.error('预测请求失败，请稍后重试');
     } finally {
       setPredicting(false);
@@ -127,6 +143,16 @@ const DayAheadPrediction = () => {
               </Space>
             }
           >
+            {/* 系统状态检查 */}
+            <AISystemStatus
+              systemStatus={systemStatus}
+              models={models}
+              loading={loading}
+              initializing={initializing}
+              onInitialize={initializeSystem}
+              onLoadModels={loadModels}
+            />
+
             <div style={{ marginBottom: 16 }}>
               <Alert
                 type="info"
@@ -156,8 +182,17 @@ const DayAheadPrediction = () => {
                 value={selectedModel}
                 onChange={setSelectedModel}
                 style={{ width: '100%', marginTop: 8 }}
-                placeholder="选择预测模型（留空使用最佳模型）"
+                placeholder={
+                  loading ? "正在加载模型..." :
+                  models.length === 0 ? "暂无可用模型" :
+                  "选择预测模型（留空使用最佳模型）"
+                }
                 allowClear
+                loading={loading}
+                disabled={!systemStatus?.initialized || models.length === 0}
+                notFoundContent={
+                  !systemStatus?.initialized ? "请先初始化系统" : "暂无可用模型"
+                }
               >
                 {models.map((model) => (
                   <Option key={model.name} value={model.name}>
@@ -174,21 +209,21 @@ const DayAheadPrediction = () => {
                   <Button 
                     block 
                     onClick={() => generateQuickPredict(1)}
-                    disabled={predicting}
+                    disabled={predicting || !isSystemReady || initializing}
                   >
                     明天预测
                   </Button>
                   <Button 
                     block 
                     onClick={() => generateQuickPredict(2)}
-                    disabled={predicting}
+                    disabled={predicting || !isSystemReady || initializing}
                   >
                     后天预测
                   </Button>
                   <Button 
                     block 
                     onClick={() => generateQuickPredict(7)}
-                    disabled={predicting}
+                    disabled={predicting || !isSystemReady || initializing}
                   >
                     一周后预测
                   </Button>
@@ -201,10 +236,12 @@ const DayAheadPrediction = () => {
               icon={<ThunderboltOutlined />}
               onClick={handlePredict}
               loading={predicting}
+              disabled={!isSystemReady || initializing}
               block
               size="large"
             >
-              开始预测
+              {!systemStatus?.initialized ? '请先初始化系统' : 
+               models.length === 0 ? '暂无可用模型' : '开始预测'}
             </Button>
           </Card>
         </Col>
@@ -315,7 +352,7 @@ const DayAheadPrediction = () => {
                     } 
                     key="main"
                   >
-                    {results.visualization.main_chart && (
+                    {results.visualization && results.visualization.main_chart && results.visualization.main_chart.html ? (
                       <div 
                         dangerouslySetInnerHTML={{ 
                           __html: results.visualization.main_chart.html 
@@ -323,8 +360,16 @@ const DayAheadPrediction = () => {
                         style={{ 
                           border: '1px solid #d9d9d9',
                           borderRadius: '6px',
-                          overflow: 'hidden'
+                          overflow: 'hidden',
+                          minHeight: '400px'
                         }}
+                      />
+                    ) : (
+                      <Alert
+                        type="warning"
+                        message="图表加载失败"
+                        description="负荷曲线图表生成失败或数据为空"
+                        showIcon
                       />
                     )}
                   </TabPane>

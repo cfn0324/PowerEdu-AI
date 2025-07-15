@@ -31,6 +31,19 @@ _predictor = None
 _visualizer = None
 _system_initialized = False
 
+def check_system_ready():
+    """检查系统是否准备就绪，并在必要时更新状态"""
+    global _system_initialized, _model_manager
+    
+    # 如果模型管理器存在，有模型，且已训练，则认为系统就绪
+    if _model_manager and hasattr(_model_manager, 'models') and _model_manager.models:
+        if _model_manager.is_trained and not _system_initialized:
+            _system_initialized = True
+            print("🔄 检测到模型已训练，更新系统状态为已初始化")
+        return _model_manager.is_trained
+    
+    return _system_initialized
+
 def initialize_ai_system():
     """初始化AI预测系统"""
     global _data_generator, _data_preprocessor, _model_manager, _predictor, _visualizer, _system_initialized
@@ -199,52 +212,91 @@ def initialize_system(request):
 @router.get("/system/status")
 def get_system_status(request):
     """获取系统状态"""
-    global _system_initialized, _model_manager
+    global _model_manager
     
-    # 如果全局变量显示未初始化，但模型管理器存在且已训练，则更新状态
-    if not _system_initialized and _model_manager and _model_manager.is_trained:
-        _system_initialized = True
-        print("🔄 检测到模型已训练，更新系统状态为已初始化")
+    # 检查并更新系统状态
+    system_ready = check_system_ready()
     
     status = {
-        "initialized": _system_initialized,
+        "initialized": system_ready,
         "timestamp": datetime.now().isoformat()
     }
     
-    if _system_initialized and _model_manager:
+    # 如果模型管理器存在，添加模型信息
+    if _model_manager and hasattr(_model_manager, 'models'):
         status.update({
             "available_models": list(_model_manager.models.keys()),
             "best_model": _model_manager.best_model_name,
             "models_trained": _model_manager.is_trained
         })
+    else:
+        status.update({
+            "available_models": [],
+            "best_model": None,
+            "models_trained": False
+        })
     
     return {"success": True, "data": status}
+
+@router.get("/debug/info")
+def debug_info(request):
+    """调试信息端点"""
+    global _model_manager, _system_initialized, _data_generator, _data_preprocessor, _predictor, _visualizer
+    
+    debug_data = {
+        "system_initialized": _system_initialized,
+        "model_manager_exists": _model_manager is not None,
+        "data_generator_exists": _data_generator is not None,
+        "data_preprocessor_exists": _data_preprocessor is not None,
+        "predictor_exists": _predictor is not None,
+        "visualizer_exists": _visualizer is not None,
+    }
+    
+    if _model_manager:
+        debug_data.update({
+            "models_count": len(_model_manager.models) if hasattr(_model_manager, 'models') else 0,
+            "models_list": list(_model_manager.models.keys()) if hasattr(_model_manager, 'models') else [],
+            "is_trained": _model_manager.is_trained if hasattr(_model_manager, 'is_trained') else False,
+            "best_model": _model_manager.best_model_name if hasattr(_model_manager, 'best_model_name') else None,
+            "performance_data": len(_model_manager.performance) if hasattr(_model_manager, 'performance') else 0
+        })
+    
+    return {"success": True, "data": debug_data}
 
 @router.get("/models")
 def get_models(request):
     """获取可用模型列表"""
-    if not _system_initialized:
-        return {"success": False, "error": "系统未初始化，请先调用 /system/initialize"}
+    global _model_manager
     
-    try:
-        models_info = []
-        for name, model in _model_manager.models.items():
-            performance = _model_manager.performance.get(name, {})
-            models_info.append({
-                "name": name,
-                "type": type(model).__name__,
-                "is_best": name == _model_manager.best_model_name,
-                "performance": performance
-            })
-        
-        return {"success": True, "data": models_info}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
+    # 强制性检查：只要模型管理器存在且有模型，就返回模型列表
+    # 不再依赖初始化状态检查
+    if _model_manager and hasattr(_model_manager, 'models'):
+        if _model_manager.models:  # 如果有模型
+            try:
+                models_info = []
+                for name, model in _model_manager.models.items():
+                    performance = _model_manager.performance.get(name, {})
+                    models_info.append({
+                        "name": name,
+                        "type": type(model).__name__,
+                        "is_best": name == _model_manager.best_model_name,
+                        "performance": performance
+                    })
+                
+                return {"success": True, "data": models_info}
+            except Exception as e:
+                return {"success": False, "error": f"构建模型信息时出错: {str(e)}"}
+        else:
+            # 有模型管理器但没有训练的模型
+            return {"success": False, "error": "模型未训练，请先调用系统初始化"}
+    
+    # 模型管理器不存在
+    return {"success": False, "error": "系统未初始化，请先调用 /system/initialize"}
 
 @router.get("/models/performance")
 def get_model_performance(request):
     """获取模型性能对比"""
-    if not _system_initialized:
+    if not check_system_ready():
         return {"success": False, "error": "系统未初始化"}
     
     try:
@@ -265,7 +317,7 @@ def get_model_performance(request):
 @router.post("/predict/single")
 def predict_single(request):
     """单点预测"""
-    if not _system_initialized:
+    if not check_system_ready():
         return {"success": False, "error": "系统未初始化"}
     
     try:

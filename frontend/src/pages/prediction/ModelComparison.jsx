@@ -34,13 +34,21 @@ const ModelComparison = () => {
   const loadModelPerformance = async () => {
     try {
       setLoading(true);
+      console.log('🔍 正在加载模型性能数据...');
       const response = await predictionApi.getModelPerformance();
-      if (response.success) {
-        setModels(response.data.comparison);
-        setPerformance(response.data);
+      console.log('📊 性能数据响应:', response.data);
+      
+      if (response.data && response.data.success) {
+        setModels(response.data.data.comparison || []);
+        setPerformance(response.data.data);
+        console.log('✅ 性能数据加载成功:', response.data.data);
+      } else {
+        console.log('❌ 性能数据加载失败:', response.data);
+        message.error('模型性能数据加载失败: ' + (response.data?.error || '未知错误'));
       }
     } catch (error) {
-      message.error('加载模型性能数据失败');
+      console.error('❌ 加载模型性能数据异常:', error);
+      message.error('加载模型性能数据失败: ' + error.message);
     } finally {
       setLoading(false);
     }

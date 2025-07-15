@@ -38,89 +38,98 @@ class Visualizer:
         Returns:
             dict: 包含图表HTML和相关信息
         """
-        prediction_value = prediction_result['predicted_load']
-        input_features = prediction_result.get('input_features', {})
-        
-        # 创建子图
-        fig = make_subplots(
-            rows=2, cols=2,
-            subplot_titles=('预测负荷', '输入特征', '时间特征', '环境因素'),
-            specs=[[{"type": "bar"}, {"type": "bar"}],
-                   [{"type": "pie"}, {"type": "scatter"}]]
-        )
-        
-        # 1. 预测负荷柱状图
-        fig.add_trace(
-            go.Bar(
-                x=['预测负荷'],
-                y=[prediction_value],
-                text=[f'{prediction_value:.2f} MW'],
-                textposition='auto',
-                marker_color=self.colors['primary'],
-                name='预测负荷'
-            ),
-            row=1, col=1
-        )
-        
-        # 2. 输入特征对比
-        if input_features:
-            feature_names = ['温度', '湿度', '风速', '降雨量']
-            feature_keys = ['temperature', 'humidity', 'wind_speed', 'rainfall']
-            feature_values = [input_features.get(key, 0) for key in feature_keys]
+        try:
+            prediction_value = prediction_result.get('predicted_load', 0)
+            input_features = prediction_result.get('input_features', {})
             
+            # 创建子图
+            fig = make_subplots(
+                rows=2, cols=2,
+                subplot_titles=('预测负荷', '环境参数', '时间特征分析', '负荷影响因子'),
+                specs=[[{"type": "bar"}, {"type": "bar"}],
+                       [{"type": "pie"}, {"type": "scatter"}]]
+            )
+            
+            # 1. 预测负荷柱状图
             fig.add_trace(
                 go.Bar(
-                    x=feature_names,
-                    y=feature_values,
-                    marker_color=[self.colors['error'], self.colors['info'], 
-                                 self.colors['success'], self.colors['secondary']],
-                    name='环境参数'
+                    x=['预测负荷'],
+                    y=[prediction_value],
+                    text=[f'{prediction_value:.2f} MW'],
+                    textposition='auto',
+                    marker_color=self.colors['primary'],
+                    name='预测负荷'
                 ),
-                row=1, col=2
+                row=1, col=1
             )
-        
-        # 3. 时间特征饼图
-        if input_features:
+            
+            # 2. 环境参数对比
+            if input_features:
+                feature_names = ['温度(°C)', '湿度(%)', '风速(m/s)', '降雨量(mm)']
+                feature_keys = ['temperature', 'humidity', 'wind_speed', 'rainfall']
+                feature_values = [input_features.get(key, 0) for key in feature_keys]
+                
+                fig.add_trace(
+                    go.Bar(
+                        x=feature_names,
+                        y=feature_values,
+                        text=[f'{v:.1f}' for v in feature_values],
+                        textposition='auto',
+                        marker_color=[self.colors['error'], self.colors['info'], 
+                                     self.colors['success'], self.colors['secondary']],
+                        name='环境参数'
+                    ),
+                    row=1, col=2
+                )
+            
+            # 3. 时间特征饼图
             time_labels = []
             time_values = []
             
-            hour = input_features.get('hour', 0)
+            hour = input_features.get('hour', 12)
             if 6 <= hour <= 8:
-                time_labels.append('早高峰')
-                time_values.append(30)
-            elif 9 <= hour <= 17:
-                time_labels.append('日间')
-                time_values.append(50)
+                time_labels.extend(['早高峰', '其他时段'])
+                time_values.extend([60, 40])
             elif 18 <= hour <= 20:
-                time_labels.append('晚高峰')
-                time_values.append(35)
+                time_labels.extend(['晚高峰', '其他时段'])
+                time_values.extend([65, 35])
+            elif 9 <= hour <= 17:
+                time_labels.extend(['日间', '其他时段'])
+                time_values.extend([70, 30])
             else:
-                time_labels.append('夜间')
-                time_values.append(20)
+                time_labels.extend(['夜间', '其他时段'])
+                time_values.extend([30, 70])
                 
-            if input_features.get('is_weekend', 0):
+            is_weekend = input_features.get('is_weekend', 0)
+            if is_weekend:
                 time_labels.append('周末')
-                time_values.append(25)
+                time_values.append(20)
             else:
                 time_labels.append('工作日')
-                time_values.append(75)
+                time_values.append(80)
                 
             fig.add_trace(
                 go.Pie(
                     labels=time_labels,
                     values=time_values,
-                    name="时间特征"
+                    name="时间特征",
+                    hole=0.3
                 ),
                 row=2, col=1
             )
         
-        # 4. 负荷影响因子
-        if input_features:
+            # 4. 负荷影响因子分析
             temp = input_features.get('temperature', 20)
-            temp_effect = max(0, abs(temp - 20) * 0.1)
+            humidity = input_features.get('humidity', 60)
             
-            factors = ['基础负荷', '温度影响', '时间影响', '其他因素']
-            effects = [0.7, temp_effect, 0.2, 0.1]
+            # 计算影响因子
+            temp_effect = max(0, abs(temp - 22) * 0.02)  # 温度偏离22度的影响
+            time_effect = 0.3 if 18 <= hour <= 20 else 0.1  # 时间影响
+            weather_effect = max(0, (humidity - 50) * 0.001)  # 湿度影响
+            base_load = 0.6  # 基础负荷
+            
+            factors = ['基础负荷', '温度影响', '时间影响', '湿度影响']
+            effects = [base_load, temp_effect, time_effect, weather_effect]
             
             fig.add_trace(
                 go.Scatter(
@@ -128,28 +137,59 @@ class Visualizer:
                     y=effects,
                     mode='lines+markers',
                     line=dict(color=self.colors['purple'], width=3),
-                    marker=dict(size=10),
+                    marker=dict(size=10, color=self.colors['purple']),
                     name='影响因子'
                 ),
                 row=2, col=2
             )
         
-        # 更新布局
-        fig.update_layout(
-            title=f"电力负荷预测结果 - {prediction_result.get('model_used', '未知模型')}",
-            height=800,
-            showlegend=False
-        )
-        
-        return {
-            'html': fig.to_html(include_plotlyjs=True),
-            'json': fig.to_json(),
-            'summary': {
-                'predicted_load': prediction_value,
-                'model_used': prediction_result.get('model_used', '未知'),
-                'prediction_time': prediction_result.get('prediction_time', datetime.now().isoformat())
+            # 更新布局
+            fig.update_layout(
+                title=f"电力负荷预测分析 - {prediction_result.get('model_used', '未知模型')}",
+                height=800,
+                showlegend=False,
+                font=dict(size=12)
+            )
+            
+            # 更新子图标题
+            fig.update_yaxes(title_text="负荷 (MW)", row=1, col=1)
+            fig.update_yaxes(title_text="数值", row=1, col=2)
+            fig.update_yaxes(title_text="影响权重", row=2, col=2)
+            
+            return {
+                'html': fig.to_html(include_plotlyjs=True),
+                'json': fig.to_json(),
+                'summary': {
+                    'predicted_load': prediction_value,
+                    'model_used': prediction_result.get('model_used', '未知'),
+                    'prediction_time': prediction_result.get('prediction_time', datetime.now().isoformat()),
+                    'input_summary': {
+                        'temperature': input_features.get('temperature', 0),
+                        'humidity': input_features.get('humidity', 0),
+                        'wind_speed': input_features.get('wind_speed', 0),
+                        'rainfall': input_features.get('rainfall', 0),
+                        'hour': input_features.get('hour', 0)
+                    }
+                }
             }
-        }
+            
+        except Exception as e:
+            print(f"❌ 单点预测可视化生成失败: {str(e)}")
+            # 返回简单的备用可视化
+            simple_fig = go.Figure(data=[
+                go.Bar(x=['预测负荷'], y=[prediction_result.get('predicted_load', 0)])
+            ])
+            simple_fig.update_layout(title="预测结果")
+            
+            return {
+                'html': simple_fig.to_html(include_plotlyjs=True),
+                'json': simple_fig.to_json(),
+                'summary': {
+                    'predicted_load': prediction_result.get('predicted_load', 0),
+                    'model_used': prediction_result.get('model_used', '未知'),
+                    'error': str(e)
+                }
+            }
     
     def plot_batch_predictions(self, prediction_results):
         """绘制批量预测结果
@@ -229,125 +269,175 @@ class Visualizer:
         Returns:
             dict: 包含多个图表的字典
         """
-        predictions = day_prediction_result['predictions']
-        statistics = day_prediction_result['statistics']
-        load_distribution = day_prediction_result['load_distribution']
-        
-        # 提取数据
-        timestamps = [pd.to_datetime(r['timestamp']) for r in predictions]
-        loads = [r['predicted_load'] for r in predictions]
-        
-        # 创建主图表 - 24小时负荷曲线
-        main_fig = go.Figure()
-        
-        # 添加负荷曲线
-        main_fig.add_trace(go.Scatter(
-            x=timestamps,
-            y=loads,
-            mode='lines',
-            name='预测负荷',
-            line=dict(color=self.colors['primary'], width=3),
-            fill='tonexty'
-        ))
-        
-        # 添加时段背景
-        for i, hour in enumerate(range(24)):
-            start_time = timestamps[0].replace(hour=hour, minute=0, second=0)
-            end_time = start_time + timedelta(hours=1)
+        try:
+            predictions = day_prediction_result['predictions']
+            statistics = day_prediction_result['statistics']
+            load_distribution = day_prediction_result['load_distribution']
             
-            # 不同时段使用不同颜色
-            if 6 <= hour <= 8 or 18 <= hour <= 20:  # 高峰时段
-                color = 'rgba(255, 0, 0, 0.1)'
-            elif 22 <= hour or hour <= 5:  # 夜间时段
-                color = 'rgba(0, 0, 255, 0.1)'
-            else:  # 正常时段
-                color = 'rgba(0, 255, 0, 0.1)'
+            # 提取数据
+            timestamps = [pd.to_datetime(r['timestamp']) for r in predictions]
+            loads = [r['predicted_load'] for r in predictions]
             
-            main_fig.add_vrect(
-                x0=start_time, x1=end_time,
-                fillcolor=color,
-                layer="below",
-                line_width=0
+            # 创建主图表 - 24小时负荷曲线
+            main_fig = go.Figure()
+            
+            # 添加负荷曲线
+            main_fig.add_trace(go.Scatter(
+                x=timestamps,
+                y=loads,
+                mode='lines+markers',
+                name='预测负荷',
+                line=dict(color=self.colors['primary'], width=3),
+                marker=dict(size=4),
+                hovertemplate='<b>时间</b>: %{x}<br><b>负荷</b>: %{y:.2f} MW<extra></extra>'
+            ))
+            
+            # 添加时段背景色
+            for i in range(0, len(timestamps), 24):  # 每6小时一个时段
+                if i + 23 < len(timestamps):
+                    hour = timestamps[i].hour
+                    start_time = timestamps[i]
+                    end_time = timestamps[min(i + 23, len(timestamps) - 1)]
+                    
+                    # 不同时段使用不同颜色
+                    if 6 <= hour <= 8 or 18 <= hour <= 20:  # 高峰时段
+                        color = 'rgba(255, 99, 71, 0.1)'
+                        text = '高峰时段'
+                    elif 22 <= hour or hour <= 5:  # 夜间时段
+                        color = 'rgba(70, 130, 180, 0.1)'
+                        text = '夜间时段'
+                    else:  # 正常时段
+                        color = 'rgba(144, 238, 144, 0.1)'
+                        text = '日间时段'
+                    
+                    main_fig.add_vrect(
+                        x0=start_time, x1=end_time,
+                        fillcolor=color,
+                        layer="below",
+                        line_width=0,
+                        annotation_text=text,
+                        annotation_position="top left"
+                    )
+            
+            # 标记峰值点
+            peak_time = pd.to_datetime(statistics['peak_time'])
+            main_fig.add_annotation(
+                x=peak_time,
+                y=statistics['peak_load'],
+                text=f"峰值: {statistics['peak_load']:.2f} MW<br>{peak_time.strftime('%H:%M')}",
+                showarrow=True,
+                arrowhead=2,
+                arrowcolor=self.colors['error'],
+                bgcolor="white",
+                bordercolor=self.colors['error'],
+                borderwidth=2
             )
-        
-        # 标记统计信息
-        peak_time = pd.to_datetime(statistics['peak_time'])
-        main_fig.add_annotation(
-            x=peak_time,
-            y=statistics['peak_load'],
-            text=f"峰值: {statistics['peak_load']:.2f} MW<br>{peak_time.strftime('%H:%M')}",
-            showarrow=True,
-            arrowhead=2,
-            bgcolor="white",
-            bordercolor=self.colors['error']
-        )
-        
-        main_fig.update_layout(
-            title=f"日前电力负荷预测 - {day_prediction_result['date']}",
-            xaxis_title="时间",
-            yaxis_title="负荷 (MW)",
-            hovermode='x unified'
-        )
-        
-        # 负荷分布饼图
-        distribution_fig = go.Figure(data=[
-            go.Pie(
-                labels=['夜间', '上午', '下午', '晚间'],
-                values=[load_distribution['night'], load_distribution['morning'],
-                       load_distribution['afternoon'], load_distribution['evening']],
-                hole=0.3,
-                marker_colors=[self.colors['info'], self.colors['success'],
-                              self.colors['warning'], self.colors['error']]
+            
+            main_fig.update_layout(
+                title=f"日前电力负荷预测曲线 - {day_prediction_result['date']}",
+                xaxis_title="时间",
+                yaxis_title="负荷 (MW)",
+                hovermode='x unified',
+                height=500
             )
-        ])
-        
-        distribution_fig.update_layout(
-            title="时段负荷分布",
-            annotations=[dict(text='负荷分布', x=0.5, y=0.5, font_size=16, showarrow=False)]
-        )
-        
-        # 统计指标条形图
-        stats_fig = go.Figure()
-        
-        stats_fig.add_trace(go.Bar(
-            x=['峰值负荷', '最小负荷', '平均负荷', '总用电量'],
-            y=[statistics['peak_load'], statistics['min_load'],
-               statistics['average_load'], statistics['total_energy']/10],  # 总用电量除以10以适配y轴
-            marker_color=[self.colors['error'], self.colors['success'],
-                         self.colors['primary'], self.colors['warning']],
-            text=[f"{statistics['peak_load']:.2f} MW",
-                  f"{statistics['min_load']:.2f} MW",
-                  f"{statistics['average_load']:.2f} MW",
-                  f"{statistics['total_energy']:.2f} MWh"],
-            textposition='auto'
-        ))
-        
-        stats_fig.update_layout(
-            title="关键统计指标",
-            yaxis_title="数值"
-        )
-        
-        return {
-            'main_chart': {
-                'html': main_fig.to_html(include_plotlyjs=True),
-                'json': main_fig.to_json()
-            },
-            'distribution_chart': {
-                'html': distribution_fig.to_html(include_plotlyjs=True),
-                'json': distribution_fig.to_json()
-            },
-            'statistics_chart': {
-                'html': stats_fig.to_html(include_plotlyjs=True),
-                'json': stats_fig.to_json()
-            },
-            'summary': {
-                'date': day_prediction_result['date'],
-                'total_points': len(predictions),
-                'model_used': day_prediction_result['model_used'],
-                'statistics': statistics,
-                'load_distribution': load_distribution
+            
+            # 负荷分布饼图
+            distribution_fig = go.Figure(data=[
+                go.Pie(
+                    labels=['夜间 (00-06)', '上午 (06-12)', '下午 (12-18)', '晚间 (18-24)'],
+                    values=[load_distribution['night'], load_distribution['morning'],
+                           load_distribution['afternoon'], load_distribution['evening']],
+                    hole=0.4,
+                    marker_colors=[self.colors['info'], self.colors['success'],
+                                  self.colors['warning'], self.colors['error']],
+                    textinfo='label+percent+value',
+                    texttemplate='%{label}<br>%{value:.2f} MW<br>(%{percent})'
+                )
+            ])
+            
+            distribution_fig.update_layout(
+                title="时段平均负荷分布",
+                annotations=[dict(text='负荷分布', x=0.5, y=0.5, font_size=16, showarrow=False)],
+                height=500
+            )
+            
+            # 统计指标条形图
+            stats_fig = go.Figure()
+            
+            stats_labels = ['峰值负荷', '最小负荷', '平均负荷', '负荷系数']
+            stats_values = [statistics['peak_load'], statistics['min_load'],
+                           statistics['average_load'], statistics['load_factor']]
+            stats_colors = [self.colors['error'], self.colors['success'],
+                           self.colors['primary'], self.colors['purple']]
+            
+            stats_fig.add_trace(go.Bar(
+                x=stats_labels,
+                y=stats_values,
+                marker_color=stats_colors,
+                text=[f"{statistics['peak_load']:.2f} MW",
+                      f"{statistics['min_load']:.2f} MW",
+                      f"{statistics['average_load']:.2f} MW",
+                      f"{statistics['load_factor']:.3f}"],
+                textposition='auto'
+            ))
+            
+            stats_fig.update_layout(
+                title="关键统计指标",
+                yaxis_title="数值",
+                height=500
+            )
+            
+            return {
+                'main_chart': {
+                    'html': main_fig.to_html(include_plotlyjs=True),
+                    'json': main_fig.to_json()
+                },
+                'distribution_chart': {
+                    'html': distribution_fig.to_html(include_plotlyjs=True),
+                    'json': distribution_fig.to_json()
+                },
+                'statistics_chart': {
+                    'html': stats_fig.to_html(include_plotlyjs=True),
+                    'json': stats_fig.to_json()
+                },
+                'summary': {
+                    'date': day_prediction_result['date'],
+                    'total_points': len(predictions),
+                    'model_used': day_prediction_result['model_used'],
+                    'statistics': statistics,
+                    'load_distribution': load_distribution
+                }
             }
-        }
+            
+        except Exception as e:
+            print(f"❌ 日前预测可视化生成失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+            # 返回简单的备用可视化
+            simple_fig = go.Figure(data=[
+                go.Scatter(x=list(range(96)), y=[0] * 96, mode='lines', name='预测失败')
+            ])
+            simple_fig.update_layout(title="日前预测 - 数据生成失败")
+            
+            return {
+                'main_chart': {
+                    'html': simple_fig.to_html(include_plotlyjs=True),
+                    'json': simple_fig.to_json()
+                },
+                'distribution_chart': {
+                    'html': simple_fig.to_html(include_plotlyjs=True),
+                    'json': simple_fig.to_json()
+                },
+                'statistics_chart': {
+                    'html': simple_fig.to_html(include_plotlyjs=True),
+                    'json': simple_fig.to_json()
+                },
+                'summary': {
+                    'error': str(e),
+                    'total_points': 0
+                }
+            }
     
     def plot_model_comparison(self, model_performance):
         """绘制模型性能比较图

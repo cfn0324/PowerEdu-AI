@@ -24,33 +24,32 @@ import {
   PlusOutlined
 } from '@ant-design/icons';
 import { predictionApi } from '../../service/prediction';
+import useAISystem from '../../hooks/useAISystem';
+import AISystemStatus from '../../components/common/AISystemStatus';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 
 const BatchPrediction = () => {
-  const [loading, setLoading] = useState(false);
   const [predicting, setPredicting] = useState(false);
   const [dataSource, setDataSource] = useState([]);
   const [results, setResults] = useState(null);
-  const [models, setModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState(null);
+  
+  // 使用AI系统管理hook
+  const {
+    systemStatus,
+    models,
+    loading,
+    initializing,
+    initializeSystem,
+    loadModels,
+    isSystemReady
+  } = useAISystem();
 
   useEffect(() => {
-    loadModels();
     generateSampleData();
   }, []);
-
-  const loadModels = async () => {
-    try {
-      const response = await predictionApi.getModels();
-      if (response.success) {
-        setModels(response.data);
-      }
-    } catch (error) {
-      message.error('加载模型列表失败');
-    }
-  };
 
   const generateSampleData = () => {
     const sampleData = [];
@@ -103,13 +102,16 @@ const BatchPrediction = () => {
         model_name: selectedModel
       };
 
+      console.log('🔮 发送批量预测请求:', predictData);
       const response = await predictionApi.predictBatch(predictData);
+      console.log('📊 批量预测响应:', response.data);
       
-      if (response.success) {
-        setResults(response.data);
-        message.success(`批量预测完成！共预测 ${response.data.predictions.length} 个时间点`);
+      if (response.data && response.data.success) {
+        setResults(response.data.data);
+        message.success(`批量预测完成！共预测 ${response.data.data.predictions?.length || 0} 个时间点`);
       } else {
-        message.error(response.error || '批量预测失败');
+        console.log('❌ 批量预测失败:', response.data);
+        message.error(response.data?.error || '批量预测失败');
       }
     } catch (error) {
       console.error('批量预测失败:', error);
@@ -308,11 +310,20 @@ const BatchPrediction = () => {
             extra={
               <Space>
                 <Select
-                  placeholder="选择预测模型"
+                  placeholder={
+                    loading ? "正在加载模型..." :
+                    models.length === 0 ? "暂无可用模型" :
+                    "选择预测模型"
+                  }
                   value={selectedModel}
                   onChange={setSelectedModel}
                   style={{ width: 150 }}
                   allowClear
+                  loading={loading}
+                  disabled={!systemStatus?.initialized || models.length === 0}
+                  notFoundContent={
+                    !systemStatus?.initialized ? "请先初始化系统" : "暂无可用模型"
+                  }
                 >
                   {models.map((model) => (
                     <Option key={model.name} value={model.name}>
@@ -340,13 +351,24 @@ const BatchPrediction = () => {
                   icon={<BarChartOutlined />}
                   onClick={handlePredict}
                   loading={predicting}
-                  disabled={dataSource.length === 0}
+                  disabled={dataSource.length === 0 || !isSystemReady || initializing}
                 >
-                  批量预测
+                  {!systemStatus?.initialized ? '请先初始化系统' : 
+                   models.length === 0 ? '暂无可用模型' : '批量预测'}
                 </Button>
               </Space>
             }
           >
+            {/* 系统状态检查 */}
+            <AISystemStatus
+              systemStatus={systemStatus}
+              models={models}
+              loading={loading}
+              initializing={initializing}
+              onInitialize={initializeSystem}
+              onLoadModels={loadModels}
+            />
+
             <div style={{ marginBottom: 16 }}>
               <Alert
                 type="info"
