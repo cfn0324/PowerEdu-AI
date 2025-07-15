@@ -38,6 +38,19 @@ media/
 *.h5
 *.hdf5
 
+# Test and Debug Files
+test_*.py
+debug_*.py
+simple_*.py
+*_test.py
+*_debug.py
+project_status_check.py
+initialize_system.py
+start_test.bat
+AI_PREDICTION_FIX_REPORT.md
+MODELMANAGER_PREDICT_FIX.md
+*_FIX_REPORT.md
+
 # Node.js
 node_modules/
 /dist/

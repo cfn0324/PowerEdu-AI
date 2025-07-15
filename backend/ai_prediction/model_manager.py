@@ -46,22 +46,66 @@ class ModelManager:
             n_jobs=-1
         )
         
-        # 梯度提升
-        self.models['GradientBoosting'] = GradientBoostingRegressor(
-            n_estimators=100,
-            random_state=42
-        )
-        
-        # 支持向量回归
-        self.models['SVR'] = SVR(kernel='rbf', C=100, gamma=0.1)
-        
-        # XGBoost (如果可用)
-        if XGBOOST_AVAILABLE:
-            self.models['XGBoost'] = XGBRegressor(
-                n_estimators=100,
+        # 梯度提升 - 使用更保守的参数设置
+        try:
+            self.models['GradientBoosting'] = GradientBoostingRegressor(
+                n_estimators=20,  # 进一步减少估计器数量
+                max_depth=2,      # 更小的树深度
+                learning_rate=0.2, # 稍高的学习率以补偿较少的估计器
                 random_state=42,
-                n_jobs=-1
+                subsample=0.9,    # 稍高的子采样比例
+                min_samples_split=5,  # 最小分割样本数
+                min_samples_leaf=3    # 最小叶子样本数
             )
+            print("   ✅ GradientBoosting 初始化成功")
+        except Exception as e:
+            print(f"   ⚠️ GradientBoosting 初始化失败: {e}")
+            # 如果初始化失败，从模型字典中移除
+            if 'GradientBoosting' in self.models:
+                del self.models['GradientBoosting']
+        
+        # 支持向量回归 - 使用更安全的参数
+        try:
+            self.models['SVR'] = SVR(
+                kernel='rbf', 
+                C=0.5,           # 进一步降低正则化参数
+                gamma='scale',   # 使用自动缩放
+                epsilon=0.2,     # 更大的容错范围
+                cache_size=500,  # 增加缓存大小
+                max_iter=1000    # 限制最大迭代次数
+            )
+            print("   ✅ SVR 初始化成功")
+        except Exception as e:
+            print(f"   ⚠️ SVR 初始化失败: {e}")
+            # 如果初始化失败，从模型字典中移除
+            if 'SVR' in self.models:
+                del self.models['SVR']
+        
+        # XGBoost (如果可用) - 使用兼容性更好的参数
+        if XGBOOST_AVAILABLE:
+            try:
+                self.models['XGBoost'] = XGBRegressor(
+                    n_estimators=20,      # 减少估计器数量
+                    max_depth=2,          # 更小的树深度
+                    learning_rate=0.2,    # 稍高的学习率
+                    random_state=42,
+                    subsample=0.9,        # 子采样比例
+                    colsample_bytree=0.8, # 特征采样比例
+                    reg_alpha=0.1,        # L1正则化
+                    reg_lambda=0.1,       # L2正则化
+                    objective='reg:squarederror',  # 明确指定目标函数
+                    eval_metric='rmse',   # 评估指标
+                    verbosity=0,          # 关闭详细输出
+                    n_jobs=1              # 单线程运行避免冲突
+                )
+                print("   ✅ XGBoost 初始化成功")
+            except Exception as e:
+                print(f"   ⚠️ XGBoost 初始化失败: {e}")
+                # 如果初始化失败，从模型字典中移除
+                if 'XGBoost' in self.models:
+                    del self.models['XGBoost']
+        else:
+            print("   ⚠️ XGBoost 不可用，请安装: pip install xgboost")
         
         print(f"✅ 初始化完成，共 {len(self.models)} 个模型")
     
@@ -101,7 +145,11 @@ class ModelManager:
                 print(f"    ❌ {name} 训练失败: {e}")
                 # 从模型字典中移除失败的模型
                 if name in self.models:
-                    del self.models[name]
+                    try:
+                        del self.models[name]
+                        print(f"    已移除故障模型: {name}")
+                    except:
+                        pass
         
         # 选择最佳模型
         if self.performance:
@@ -123,10 +171,18 @@ class ModelManager:
         """
         print("🚀 快速训练核心模型...")
         
-        # 只训练几个最重要的模型以节省时间
-        core_models = ['LinearRegression', 'RandomForest']
+        # 按优先级排序的模型列表
+        model_priority = [
+            'LinearRegression',    # 最稳定
+            'RandomForest',        # 通常很可靠
+            'GradientBoosting',    # 可能有问题的模型
+            'SVR',                 # 可能有问题的模型
+            'XGBoost'              # 可能有问题的模型
+        ]
         
-        for name in core_models:
+        successful_models = []
+        
+        for name in model_priority:
             if name in self.models:
                 print(f"  训练 {name}...")
                 try:
@@ -138,9 +194,17 @@ class ModelManager:
                     # 预测
                     y_pred = model.predict(X_test)
                     
+                    # 验证预测结果
+                    if np.any(np.isnan(y_pred)) or np.any(np.isinf(y_pred)):
+                        raise ValueError("预测结果包含NaN或无穷值")
+                    
                     # 评估性能
                     mse = mean_squared_error(y_test, y_pred)
                     r2 = r2_score(y_test, y_pred)
+                    
+                    # 验证性能指标
+                    if np.isnan(mse) or np.isnan(r2) or mse < 0:
+                        raise ValueError("性能指标异常")
                     
                     self.performance[name] = {
                         'mse': mse,
@@ -148,20 +212,30 @@ class ModelManager:
                         'rmse': np.sqrt(mse)
                     }
                     
-                    print(f"    {name}: MSE={mse:.6f}, R²={r2:.6f}")
+                    successful_models.append(name)
+                    print(f"    ✅ {name}: MSE={mse:.6f}, R²={r2:.6f}")
                     
                 except Exception as e:
                     print(f"    ❌ {name} 训练失败: {e}")
+                    # 从模型字典中移除失败的模型
+                    if name in self.models:
+                        try:
+                            del self.models[name]
+                            print(f"    🗑️ 已移除故障模型: {name}")
+                        except:
+                            pass
                     continue
         
-        # 选择最佳模型
-        if self.performance:
+        # 检查是否有成功的模型
+        if successful_models:
+            # 选择最佳模型
             self.best_model_name = min(self.performance.keys(), 
                                      key=lambda k: self.performance[k]['mse'])
-            print(f"✅ 最佳模型: {self.best_model_name}")
+            print(f"✅ 训练完成，成功模型: {successful_models}")
+            print(f"🏆 最佳模型: {self.best_model_name}")
             self.is_trained = True
         else:
-            print("❌ 没有模型成功训练")
+            print("❌ 所有模型训练失败")
             self.is_trained = False
         
         return self.is_trained
