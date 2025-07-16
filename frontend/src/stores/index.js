@@ -34,7 +34,6 @@ export const useTokenStore = create(
           message.error("注册出现故障");
           return false;
         }
-        console.log(res.data?.msg);
         if (res.data?.msg === "ok"){
           return true;
         }else{

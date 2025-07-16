@@ -1,6 +1,6 @@
 # 🔌 PowerEdu-AI 电力知识库与AI预测平台
 
-> **PowerEdu-AI** - 集成电力知识库在线学习与AI负荷预测功能的企业级智能平台
+> 集成电力知识库在线学习与AI负荷预测功能的企业级智能平台
 
 [![Python](https://img.shields.io/badge/Python-3.8+-3776ab.svg?logo=python&logoColor=white)](https://python.org)
 [![Django](https://img.shields.io/badge/Django-4.2.7-092e20.svg?logo=django&logoColor=white)](https://djangoproject.com)
@@ -86,11 +86,6 @@ npm run dev
 - **梯度提升**: 高精度预测
 - **XGBoost**: 工业级梯度提升
 - **支持向量回归**: 非线性映射
-
-### 特征工程
-- **时间特征**: 小时、日、周、月、季节
-- **气象特征**: 温度、湿度、风速、降雨量
-- **历史特征**: 滞后项、滑动窗口统计
 
 ## 🏗️ 项目结构
 

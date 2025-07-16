@@ -41,21 +41,16 @@ const PredictionDashboard = () => {
 
   const checkSystemStatus = async () => {
     try {
-      console.log('🔍 检查系统状态...');
       const response = await api.get('/prediction/system/status');
-      console.log('📊 状态响应:', response.data);
       
       if (response.data && response.data.success) {
         setSystemStatus(response.data.data);
-        console.log(`✅ 系统状态获取成功: initialized=${response.data.data.initialized}`);
         return response.data.data;
       } else {
-        console.log('❌ 状态检查失败');
         setSystemStatus({ initialized: false, error: '状态检查失败' });
         return { initialized: false, error: '状态检查失败' };
       }
     } catch (error) {
-      console.log(`❌ 检查系统状态异常: ${error.message}`);
       setSystemStatus({ initialized: false, error: error.message });
       return { initialized: false, error: error.message };
     }
@@ -64,28 +59,22 @@ const PredictionDashboard = () => {
   const initializeSystemAPI = async () => {
     try {
       setInitializing(true);
-      console.log('🚀 开始初始化AI系统...');
       
       const response = await api.get('/prediction/system/initialize');
-      console.log('🔍 初始化响应:', response.data);
       
       if (response.data && response.data.success) {
-        console.log('✅ 初始化API调用成功');
         message.success('AI系统初始化成功！');
         
         // 等待几秒后检查状态
         setTimeout(() => {
-          console.log('🔄 检查初始化后的系统状态...');
           checkSystemStatus();
         }, 3000);
         return true;
       } else {
-        console.log(`❌ 初始化失败: ${response.data?.message || '未知错误'}`);
         message.error(`初始化失败: ${response.data?.message || '未知错误'}`);
         return false;
       }
     } catch (error) {
-      console.log(`❌ 初始化系统异常: ${error.message}`);
       message.error(`初始化系统异常: ${error.message}`);
       return false;
     } finally {

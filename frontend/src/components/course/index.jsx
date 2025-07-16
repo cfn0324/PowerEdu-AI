@@ -7,23 +7,17 @@ import { getLevel, getImageUrl } from "../../tools";
 import React,{useState} from "react";
 
 export const CourseItem = ({ item, clickFlav, clickCourse }) => {
-  console.log(item);
-
-  const [isFavorited,setIsFavorited] = useState(false); //添加状态
+  const [isFavorited,setIsFavorited] = useState(false);
 
   const clickFlavEvent = (e, item) => {
-    console.log("first 点击了click 收藏");
     // 阻止事件冒泡
     e.stopPropagation();
     clickFlav(item).then((success) => {
-      if (success) isFavorited ? setIsFavorited(false):setIsFavorited(true); // 收藏成功后更新状态
+      if (success) isFavorited ? setIsFavorited(false):setIsFavorited(true);
     });
   };
 
-  
-
   const clickCourseEvent = (item) => {
-    console.log("first detail");
     clickCourse(item);
   };
 
@@ -53,10 +47,8 @@ export const CourseList = ({ courses }) => {
   //   点击收藏
   const clickFlav = async (item) => {
     try{
-      console.log(item);
       const res = await addActByCourseId(item.id, 2);
 
-      console.log(res.data.message);
       if (res.data.code) {
         message.success(res.data.msg);
         return true;
@@ -66,7 +58,6 @@ export const CourseList = ({ courses }) => {
       message.error("收藏失败，请稍后重试！");
       return false;
     }
-    
   };
 
   const clickCourse = (item) => {

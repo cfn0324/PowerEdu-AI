@@ -45,19 +45,14 @@ const PredictionHistory = () => {
   const loadHistory = async () => {
     try {
       setLoading(true);
-      console.log('🔍 正在加载预测历史...');
       const response = await predictionApi.getPredictionHistory();
-      console.log('📊 历史数据响应:', response.data);
       
       if (response.data && response.data.success) {
         setHistory(response.data.data || []);
-        console.log('✅ 历史数据加载成功:', response.data.data);
       } else {
-        console.log('❌ 历史数据加载失败:', response.data);
         message.error('预测历史加载失败: ' + (response.data?.error || '未知错误'));
       }
     } catch (error) {
-      console.error('❌ 加载预测历史异常:', error);
       message.error('加载预测历史失败: ' + error.message);
     } finally {
       setLoading(false);

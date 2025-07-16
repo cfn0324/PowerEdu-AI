@@ -82,9 +82,7 @@ const SinglePrediction = () => {
         model_name: values.model_name
       };
 
-      console.log('🔮 发送预测请求:', predictData);
       const response = await predictionApi.predictSingle(predictData);
-      console.log('📊 预测响应:', response.data);
       
       if (response.data && response.data.success) {
         setResult(response.data.data);
@@ -93,29 +91,18 @@ const SinglePrediction = () => {
         } else {
           message.success('预测完成！登录后可保存历史记录');
         }
-        console.log('✅ 预测结果:', response.data.data);
       } else {
-        console.log('❌ 预测失败:', response.data);
         const errorMsg = response.data?.error || '预测失败';
         message.error(`预测失败: ${errorMsg}`);
-        // 显示详细错误信息供调试
-        console.error('详细错误信息:', response.data);
       }
     } catch (error) {
-      console.error('❌ 预测异常:', error);
       let errorMessage = '预测请求失败，请稍后重试';
       
       if (error.response) {
-        // 服务器响应错误
-        console.error('服务器响应错误:', error.response.data);
         errorMessage = `服务器错误: ${error.response.data?.error || error.response.statusText}`;
       } else if (error.request) {
-        // 网络错误
-        console.error('网络请求错误:', error.request);
         errorMessage = '网络连接失败，请检查服务器状态';
       } else {
-        // 其他错误
-        console.error('其他错误:', error.message);
         errorMessage = `请求错误: ${error.message}`;
       }
       

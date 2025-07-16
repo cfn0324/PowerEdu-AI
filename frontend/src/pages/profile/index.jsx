@@ -63,8 +63,6 @@ const Info = () => {
         <Button
           type="primary"
           onClick={async () => {
-            console.log(newPsd);
-
             if (newPsd.trim().length >= 6) {
               const res = await changePsd(newPsd);
               if (res.data.code) {
@@ -90,7 +88,6 @@ const UserCourse = () => {
   useEffect(() => {
     async function getData() {
       const res = await getCourseByAct(selectAct);
-      console.log(selectAct);
       if (selectAct === 1) {
         setStudyCourses(res.data);
       } else {
@@ -99,7 +96,6 @@ const UserCourse = () => {
     }
     getData();
   }, [selectAct]);
-  // todo 反馈留言，代码优化
 
   const items = [
     { key: 2, label: "收藏的", children: <CourseList courses={flavCourses} /> },

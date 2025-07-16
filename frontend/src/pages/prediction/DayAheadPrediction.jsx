@@ -65,28 +65,15 @@ const DayAheadPrediction = () => {
         model_name: selectedModel
       };
 
-      console.log('🔮 发送日前预测请求:', predictData);
       const response = await predictionApi.predictDayAhead(predictData);
-      console.log('📊 日前预测响应完整数据:', response.data);
       
       if (response.data && response.data.success) {
         const resultData = response.data.data;
-        console.log('✅ 预测成功，分析结果数据:', resultData);
         
-        // 验证数据结构 - 正确的路径是 resultData.prediction.predictions
+        // 验证数据结构
         if (!resultData.prediction || !resultData.prediction.predictions || !Array.isArray(resultData.prediction.predictions)) {
-          console.error('❌ 预测数据格式错误:', resultData);
           message.error('预测数据格式错误');
           return;
-        }
-        
-        if (!resultData.visualization) {
-          console.warn('⚠️ 没有可视化数据');
-        } else {
-          console.log('📈 可视化数据结构:', resultData.visualization);
-          console.log('📈 主图表数据:', resultData.visualization.main_chart);
-          console.log('📈 分布图数据:', resultData.visualization.distribution_chart);
-          console.log('📈 统计图数据:', resultData.visualization.statistics_chart);
         }
         
         setResults(resultData);
@@ -97,11 +84,9 @@ const DayAheadPrediction = () => {
           message.success(`日前预测完成！共生成${pointCount}个时间点的预测结果，登录后可保存历史记录`);
         }
       } else {
-        console.error('❌ 日前预测失败:', response.data);
         message.error(response.data?.error || '日前预测失败');
       }
     } catch (error) {
-      console.error('❌ 日前预测请求失败:', error);
       message.error('预测请求失败，请稍后重试');
     } finally {
       setPredicting(false);
