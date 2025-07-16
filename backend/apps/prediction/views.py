@@ -300,7 +300,10 @@ def get_model_performance(request):
         return {"success": False, "error": "系统未初始化"}
     
     try:
+        # 获取模型对比数据
         comparison = _model_manager.get_model_comparison()
+        
+        # 生成可视化图表
         visualization = _visualizer.plot_model_comparison(_model_manager.performance)
         
         return {
@@ -308,11 +311,28 @@ def get_model_performance(request):
             "data": {
                 "comparison": comparison,
                 "visualization": visualization,
-                "best_model": _model_manager.best_model_name
+                "best_model": _model_manager.best_model_name,
+                "summary": {
+                    "total_models": len(comparison),
+                    "trained_models": len([m for m in comparison if m['r2'] > 0]),
+                    "best_r2": max([m['r2'] for m in comparison]) if comparison else 0
+                }
             }
         }
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"❌ 获取模型性能对比时出错: {str(e)}")
+        print(f"详细错误: {error_trace}")
+        return {
+            "success": False, 
+            "error": f"获取模型性能对比失败: {str(e)}",
+            "debug_info": {
+                "model_manager_exists": _model_manager is not None,
+                "visualizer_exists": _visualizer is not None,
+                "has_performance": bool(_model_manager.performance) if _model_manager else False
+            }
+        }
 
 @router.post("/predict/single")
 def predict_single(request):

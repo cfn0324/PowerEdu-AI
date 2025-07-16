@@ -449,65 +449,88 @@ class Visualizer:
             dict: 包含比较图表
         """
         if not model_performance:
-            return None
-        
-        models = list(model_performance.keys())
-        
-        # 创建子图
-        fig = make_subplots(
-            rows=2, cols=2,
-            subplot_titles=('R² 决定系数', '均方根误差 (RMSE)', '平均绝对误差 (MAE)', '平均绝对百分比误差 (MAPE)'),
-            specs=[[{"type": "bar"}, {"type": "bar"}],
-                   [{"type": "bar"}, {"type": "bar"}]]
-        )
-        
-        # R² 分数
-        r2_scores = [model_performance[model].get('r2', 0) for model in models]
-        fig.add_trace(
-            go.Bar(x=models, y=r2_scores, name='R²', marker_color=self.colors['success']),
-            row=1, col=1
-        )
-        
-        # RMSE
-        rmse_values = [model_performance[model].get('rmse', 0) for model in models]
-        fig.add_trace(
-            go.Bar(x=models, y=rmse_values, name='RMSE', marker_color=self.colors['error']),
-            row=1, col=2
-        )
-        
-        # MAE
-        mae_values = [model_performance[model].get('mae', 0) for model in models]
-        fig.add_trace(
-            go.Bar(x=models, y=mae_values, name='MAE', marker_color=self.colors['warning']),
-            row=2, col=1
-        )
-        
-        # MAPE
-        mape_values = [model_performance[model].get('mape', 0) for model in models]
-        fig.add_trace(
-            go.Bar(x=models, y=mape_values, name='MAPE (%)', marker_color=self.colors['info']),
-            row=2, col=2
-        )
-        
-        fig.update_layout(
-            title="模型性能比较",
-            height=600,
-            showlegend=False
-        )
-        
-        # 找到最佳模型
-        best_model = max(models, key=lambda x: model_performance[x].get('r2', 0))
-        
-        return {
-            'html': fig.to_html(include_plotlyjs=True),
-            'json': fig.to_json(),
-            'best_model': best_model,
-            'performance_summary': {
-                'best_r2': model_performance[best_model].get('r2', 0),
-                'best_rmse': model_performance[best_model].get('rmse', 0),
-                'model_count': len(models)
+            return {
+                'html': '<div style="text-align: center; padding: 50px;">暂无模型性能数据</div>',
+                'json': None,
+                'best_model': None,
+                'performance_summary': {
+                    'best_r2': 0,
+                    'best_rmse': 0,
+                    'model_count': 0
+                }
             }
-        }
+        
+        try:
+            models = list(model_performance.keys())
+            
+            # 创建子图
+            fig = make_subplots(
+                rows=2, cols=2,
+                subplot_titles=('R² 决定系数', '均方根误差 (RMSE)', '平均绝对误差 (MAE)', '平均绝对百分比误差 (MAPE)'),
+                specs=[[{"type": "bar"}, {"type": "bar"}],
+                       [{"type": "bar"}, {"type": "bar"}]]
+            )
+            
+            # R² 分数
+            r2_scores = [model_performance[model].get('r2', 0) for model in models]
+            fig.add_trace(
+                go.Bar(x=models, y=r2_scores, name='R²', marker_color=self.colors['success']),
+                row=1, col=1
+            )
+            
+            # RMSE
+            rmse_values = [model_performance[model].get('rmse', 0) for model in models]
+            fig.add_trace(
+                go.Bar(x=models, y=rmse_values, name='RMSE', marker_color=self.colors['error']),
+                row=1, col=2
+            )
+            
+            # MAE
+            mae_values = [model_performance[model].get('mae', 0) for model in models]
+            fig.add_trace(
+                go.Bar(x=models, y=mae_values, name='MAE', marker_color=self.colors['warning']),
+                row=2, col=1
+            )
+            
+            # MAPE
+            mape_values = [model_performance[model].get('mape', 0) for model in models]
+            fig.add_trace(
+                go.Bar(x=models, y=mape_values, name='MAPE (%)', marker_color=self.colors['info']),
+                row=2, col=2
+            )
+            
+            fig.update_layout(
+                title="模型性能比较",
+                height=600,
+                showlegend=False
+            )
+            
+            # 找到最佳模型
+            best_model = max(models, key=lambda x: model_performance[x].get('r2', 0))
+            
+            return {
+                'html': fig.to_html(include_plotlyjs=True),
+                'json': fig.to_json(),
+                'best_model': best_model,
+                'performance_summary': {
+                    'best_r2': model_performance[best_model].get('r2', 0),
+                    'best_rmse': model_performance[best_model].get('rmse', 0),
+                    'model_count': len(models)
+                }
+            }
+        except Exception as e:
+            print(f"❌ 生成模型对比图表时出错: {e}")
+            return {
+                'html': f'<div style="text-align: center; padding: 50px; color: red;">图表生成失败: {str(e)}</div>',
+                'json': None,
+                'best_model': None,
+                'performance_summary': {
+                    'best_r2': 0,
+                    'best_rmse': 0,
+                    'model_count': 0
+                },
+                'error': str(e)
+            }
     
     def plot_prediction_error_analysis(self, predictions, actual_values):
         """绘制预测误差分析图

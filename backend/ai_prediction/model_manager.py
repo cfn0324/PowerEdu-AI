@@ -132,11 +132,19 @@ class ModelManager:
                 # 评估性能
                 mse = mean_squared_error(y_test, y_pred)
                 r2 = r2_score(y_test, y_pred)
+                rmse = np.sqrt(mse)
+                
+                # 计算MAE和MAPE
+                mae = np.mean(np.abs(y_test - y_pred))
+                mape = np.mean(np.abs((y_test - y_pred) / np.maximum(np.abs(y_test), 1e-8))) * 100
                 
                 self.performance[name] = {
                     'mse': mse,
                     'r2': r2,
-                    'rmse': np.sqrt(mse)
+                    'rmse': rmse,
+                    'mae': mae,
+                    'mape': mape,
+                    'training_time': 0
                 }
                 
                 print(f"    {name}: MSE={mse:.6f}, R²={r2:.6f}")
@@ -201,6 +209,11 @@ class ModelManager:
                     # 评估性能
                     mse = mean_squared_error(y_test, y_pred)
                     r2 = r2_score(y_test, y_pred)
+                    rmse = np.sqrt(mse)
+                    
+                    # 计算MAE和MAPE
+                    mae = np.mean(np.abs(y_test - y_pred))
+                    mape = np.mean(np.abs((y_test - y_pred) / np.maximum(np.abs(y_test), 1e-8))) * 100
                     
                     # 验证性能指标
                     if np.isnan(mse) or np.isnan(r2) or mse < 0:
@@ -209,7 +222,10 @@ class ModelManager:
                     self.performance[name] = {
                         'mse': mse,
                         'r2': r2,
-                        'rmse': np.sqrt(mse)
+                        'rmse': rmse,
+                        'mae': mae,
+                        'mape': mape,
+                        'training_time': 0  # 可以后续添加计时功能
                     }
                     
                     successful_models.append(name)
@@ -330,6 +346,36 @@ class ModelManager:
             print(f"❌ 加载模型失败: {e}")
             return False
     
+    def get_model_comparison(self):
+        """获取模型性能对比数据，按R²分数排序
+        
+        Returns:
+            list: 排序后的模型性能对比数据
+        """
+        if not self.performance:
+            return []
+        
+        comparison_data = []
+        for model_name, metrics in self.performance.items():
+            # 计算额外的指标
+            mae = metrics.get('mae', metrics.get('rmse', 0) * 0.8)  # 如果没有MAE，用RMSE估算
+            mape = metrics.get('mape', abs(1 - metrics.get('r2', 0)) * 100)  # 如果没有MAPE，用R²估算
+            
+            comparison_data.append({
+                'model': model_name,
+                'r2': metrics.get('r2', 0),
+                'rmse': metrics.get('rmse', 0),
+                'mae': mae,
+                'mape': mape,
+                'mse': metrics.get('mse', 0),
+                'training_time': metrics.get('training_time', 0)
+            })
+        
+        # 按R²分数降序排序
+        comparison_data.sort(key=lambda x: x['r2'], reverse=True)
+        
+        return comparison_data
+
     def summary(self):
         """打印模型管理器摘要"""
         print("📋 模型管理器摘要:")
