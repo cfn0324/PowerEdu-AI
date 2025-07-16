@@ -45,7 +45,8 @@ chmod +x start.sh && ./start.sh
 pip install -r requirements.txt
 
 # 前端依赖
-cd frontend && npm install
+cd frontend
+npm install
 ```
 
 2. **启动后端**

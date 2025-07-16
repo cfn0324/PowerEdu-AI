@@ -1,69 +1,93 @@
-# 电力知识库与AI预测平台启动脚本
+# PowerEdu-AI Platform Startup Script
+# Encoding: UTF-8 with BOM
 
-Write-Host "🔌 正在启动电力知识库与AI预测平台..." -ForegroundColor Green
+# Set encoding for console output
+$OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-# 检查Python环境
-Write-Host "检查Python环境..." -ForegroundColor Yellow
-python --version
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ Python未找到，请先安装Python 3.8+" -ForegroundColor Red
+# Clear screen and show banner
+Clear-Host
+Write-Host ""
+Write-Host "================================" -ForegroundColor Cyan
+Write-Host "   PowerEdu-AI Platform v1.0   " -ForegroundColor Green
+Write-Host "================================" -ForegroundColor Cyan
+Write-Host ""
+
+# Check Python environment
+Write-Host "[1/6] Checking Python..." -ForegroundColor Yellow
+try {
+    $pythonVersion = python --version 2>&1
+    Write-Host "✓ $pythonVersion" -ForegroundColor Green
+} catch {
+    Write-Host "✗ Python not found. Please install Python 3.8+" -ForegroundColor Red
+    Read-Host "Press Enter to exit"
     exit 1
 }
 
-# 检查Node.js环境
-Write-Host "检查Node.js环境..." -ForegroundColor Yellow
-node --version
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ Node.js未找到，请先安装Node.js 18.15+" -ForegroundColor Red
+# Check Node.js environment
+Write-Host "[2/6] Checking Node.js..." -ForegroundColor Yellow
+try {
+    $nodeVersion = node --version 2>&1
+    Write-Host "✓ Node.js $nodeVersion" -ForegroundColor Green
+} catch {
+    Write-Host "✗ Node.js not found. Please install Node.js 18.15+" -ForegroundColor Red
+    Read-Host "Press Enter to exit"
     exit 1
 }
 
-# 安装Python依赖
-Write-Host "安装Python依赖..." -ForegroundColor Yellow
-pip install -r requirements.txt
+# Install Python dependencies
+Write-Host "[3/6] Installing Python dependencies..." -ForegroundColor Yellow
+pip install -r requirements.txt -q
+Write-Host "✓ Python dependencies installed" -ForegroundColor Green
 
-# 进入后端目录并初始化数据库
-Write-Host "初始化Django数据库..." -ForegroundColor Yellow
+# Initialize Django database
+Write-Host "[4/6] Initializing Django database..." -ForegroundColor Yellow
 Set-Location backend
-python manage.py migrate
-if (!(Test-Path "db.sqlite3")) {
-    Write-Host "创建超级用户账户（可选）..." -ForegroundColor Yellow
-    Write-Host "账号: admin, 密码: 123456" -ForegroundColor Cyan
-    # python manage.py createsuperuser --noinput --username admin --email admin@example.com
-}
+python manage.py migrate --verbosity=0
+Write-Host "✓ Database initialized" -ForegroundColor Green
 
-# 启动Django后端（后台运行）
-Write-Host "🚀 启动Django后端服务..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "python manage.py runserver"
+# Start Django backend
+Write-Host "[5/6] Starting Django backend..." -ForegroundColor Yellow
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$(Get-Location)'; python manage.py runserver" -WindowStyle Normal
+Write-Host "✓ Backend service started" -ForegroundColor Green
 
 Set-Location ..
 
-# 进入前端目录并安装依赖
-Write-Host "安装前端依赖..." -ForegroundColor Yellow
+# Start React frontend
+Write-Host "[6/6] Starting React frontend..." -ForegroundColor Yellow
 Set-Location frontend
-npm install
-
-# 启动React前端
-Write-Host "🚀 启动React前端服务..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "npm run dev"
+if (!(Test-Path "node_modules")) {
+    Write-Host "  Installing frontend dependencies..." -ForegroundColor Gray
+    npm install --silent
+}
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$(Get-Location)'; npm run dev" -WindowStyle Normal
+Write-Host "✓ Frontend service started" -ForegroundColor Green
 
 Set-Location ..
 
-# 显示访问信息
+# Wait for services to start
 Write-Host ""
-Write-Host "✅ 平台启动完成！" -ForegroundColor Green
-Write-Host ""
-Write-Host "📱 访问地址：" -ForegroundColor Cyan
-Write-Host "  主平台: http://localhost:5173" -ForegroundColor White
-Write-Host "  AI预测: http://localhost:5173/prediction" -ForegroundColor White
-Write-Host "  后端API: http://localhost:8000" -ForegroundColor White
-Write-Host "  管理后台: http://localhost:8000/admin" -ForegroundColor White
-Write-Host "  API文档: http://localhost:8000/api/docs" -ForegroundColor White
-Write-Host ""
-Write-Host "🔑 管理员账户：" -ForegroundColor Cyan
-Write-Host "  用户名: admin" -ForegroundColor White
-Write-Host "  密码: 123456" -ForegroundColor White
-Write-Host ""
-Write-Host "🎯 AI预测功能已完全集成到主平台中！" -ForegroundColor Green
+Write-Host "Waiting for services to start..." -ForegroundColor Gray
+Start-Sleep -Seconds 3
 
-Read-Host "按回车键退出"
+# Display completion info
+Write-Host ""
+Write-Host "================================" -ForegroundColor Green
+Write-Host "        🎉 SUCCESS!            " -ForegroundColor Green  
+Write-Host "================================" -ForegroundColor Green
+Write-Host ""
+Write-Host "📱 Access URLs:" -ForegroundColor Cyan
+Write-Host "   Main Platform: http://localhost:5173" -ForegroundColor White
+Write-Host "   AI Prediction: http://localhost:5173/prediction" -ForegroundColor White
+Write-Host "   Backend API: http://localhost:8000" -ForegroundColor White
+Write-Host "   Admin Panel: http://localhost:8000/admin" -ForegroundColor White
+Write-Host "   API Docs: http://localhost:8000/api/docs" -ForegroundColor White
+Write-Host ""
+Write-Host "🔑 Admin Account:" -ForegroundColor Cyan
+Write-Host "   Username: admin" -ForegroundColor White
+Write-Host "   Password: 123456" -ForegroundColor White
+Write-Host ""
+Write-Host "💡 AI prediction features are fully integrated!" -ForegroundColor Yellow
+Write-Host ""
+
+Read-Host "Press Enter to exit"
