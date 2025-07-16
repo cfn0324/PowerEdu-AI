@@ -13,7 +13,8 @@ import {
   message,
   Modal,
   Alert,
-  Spin
+  Spin,
+  Tag
 } from 'antd';
 import {
   UploadOutlined,
@@ -21,11 +22,14 @@ import {
   BarChartOutlined,
   FileExcelOutlined,
   DeleteOutlined,
-  PlusOutlined
+  PlusOutlined,
+  UserOutlined,
+  LoginOutlined
 } from '@ant-design/icons';
 import { predictionApi } from '../../service/prediction';
 import useAISystem from '../../hooks/useAISystem';
 import AISystemStatus from '../../components/common/AISystemStatus';
+import { useTokenStore } from '../../stores';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -35,6 +39,10 @@ const BatchPrediction = () => {
   const [dataSource, setDataSource] = useState([]);
   const [results, setResults] = useState(null);
   const [selectedModel, setSelectedModel] = useState(null);
+  
+  // 获取用户登录状态
+  const { auth } = useTokenStore();
+  const isLoggedIn = !!auth?.token;
   
   // 使用AI系统管理hook
   const {
@@ -108,7 +116,12 @@ const BatchPrediction = () => {
       
       if (response.data && response.data.success) {
         setResults(response.data.data);
-        message.success(`批量预测完成！共预测 ${response.data.data.predictions?.length || 0} 个时间点`);
+        const pointCount = response.data.data.predictions?.length || 0;
+        if (isLoggedIn) {
+          message.success(`批量预测完成！共预测 ${pointCount} 个时间点，历史记录已保存`);
+        } else {
+          message.success(`批量预测完成！共预测 ${pointCount} 个时间点，登录后可保存历史记录`);
+        }
       } else {
         console.log('❌ 批量预测失败:', response.data);
         message.error(response.data?.error || '批量预测失败');
@@ -368,6 +381,29 @@ const BatchPrediction = () => {
               onInitialize={initializeSystem}
               onLoadModels={loadModels}
             />
+
+            {/* 登录状态提示 */}
+            {!isLoggedIn && (
+              <Alert
+                type="info"
+                message="历史记录提示"
+                description={
+                  <div>
+                    <span>💡 登录后可自动保存批量预测历史记录 </span>
+                    <Tag color="green" style={{ marginLeft: 8 }}>
+                      <UserOutlined /> 建议登录
+                    </Tag>
+                  </div>
+                }
+                style={{ marginBottom: 16 }}
+                showIcon
+                action={
+                  <Button size="small" icon={<LoginOutlined />} onClick={() => window.location.reload()}>
+                    去登录
+                  </Button>
+                }
+              />
+            )}
 
             <div style={{ marginBottom: 16 }}>
               <Alert

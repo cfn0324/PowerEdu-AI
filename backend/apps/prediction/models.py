@@ -29,7 +29,8 @@ class PredictionHistory(models.Model):
     prediction_result = models.JSONField(verbose_name='预测结果')
     prediction_type = models.CharField(max_length=20, choices=[
         ('single', '单点预测'),
-        ('batch', '批量预测')
+        ('batch', '批量预测'),
+        ('day_ahead', '日前预测')
     ], verbose_name='预测类型')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='预测时间')
 

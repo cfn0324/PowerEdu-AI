@@ -10,17 +10,21 @@ import {
   Empty,
   Spin,
   message,
-  Modal
+  Modal,
+  Alert
 } from 'antd';
 import {
   HistoryOutlined,
   EyeOutlined,
   DeleteOutlined,
   ReloadOutlined,
-  DownloadOutlined
+  DownloadOutlined,
+  LoginOutlined,
+  UserOutlined
 } from '@ant-design/icons';
 import moment from 'moment';
 import { predictionApi } from '../../service/prediction';
+import { useTokenStore } from '../../stores';
 
 const { Title, Text } = Typography;
 
@@ -29,6 +33,10 @@ const PredictionHistory = () => {
   const [history, setHistory] = useState([]);
   const [detailVisible, setDetailVisible] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
+  
+  // 获取用户登录状态
+  const { auth } = useTokenStore();
+  const isLoggedIn = !!auth?.token;
 
   useEffect(() => {
     loadHistory();
@@ -141,30 +149,51 @@ const PredictionHistory = () => {
       title: '输入参数',
       dataIndex: 'input_summary',
       key: 'input_summary',
-      render: (summary) => (
+      render: (summary, record) => (
         <div>
-          <div>
-            <Text type="secondary">时间: </Text>
-            <Text>{summary.timestamp !== 'N/A' ? moment(summary.timestamp).format('MM-DD HH:mm') : 'N/A'}</Text>
-          </div>
-          <div>
-            <Text type="secondary">温度: </Text>
-            <Text>{summary.temperature !== 'N/A' ? `${summary.temperature}°C` : 'N/A'}</Text>
-          </div>
+          {record.prediction_type === 'day_ahead' ? (
+            <div>
+              <div>
+                <Text type="secondary">目标日期: </Text>
+                <Text>{summary.target_date !== 'N/A' ? moment(summary.target_date).format('YYYY-MM-DD') : 'N/A'}</Text>
+              </div>
+              <div>
+                <Text type="secondary">温度: </Text>
+                <Text>{summary.temperature !== 'N/A' ? `${summary.temperature}°C` : '自动生成'}</Text>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div>
+                <Text type="secondary">时间: </Text>
+                <Text>{summary.timestamp !== 'N/A' ? moment(summary.timestamp).format('MM-DD HH:mm') : 'N/A'}</Text>
+              </div>
+              <div>
+                <Text type="secondary">温度: </Text>
+                <Text>{summary.temperature !== 'N/A' ? `${summary.temperature}°C` : 'N/A'}</Text>
+              </div>
+            </div>
+          )}
         </div>
       ),
-      width: 200
+      width: 220
     },
     {
       title: '预测结果',
       dataIndex: 'prediction_summary',
       key: 'prediction_summary',
-      render: (summary) => (
+      render: (summary, record) => (
         <div>
-          {summary.predicted_load !== 'N/A' ? (
-            <Text strong>{summary.predicted_load} MW</Text>
+          {record.prediction_type === 'single' ? (
+            // 单点预测显示具体数值
+            summary.predicted_load !== 'N/A' && typeof summary.predicted_load === 'number' ? (
+              <Text strong>{summary.predicted_load.toFixed(2)} MW</Text>
+            ) : (
+              <Text strong>{summary.predicted_load}</Text>
+            )
           ) : (
-            <Text>批量结果</Text>
+            // 批量预测和日前预测显示概要信息
+            <Text>{summary.predicted_load}</Text>
           )}
         </div>
       ),
@@ -196,6 +225,11 @@ const PredictionHistory = () => {
           <Space>
             <HistoryOutlined />
             <span>预测历史记录</span>
+            {isLoggedIn && (
+              <Tag color="green" icon={<UserOutlined />}>
+                已登录用户
+              </Tag>
+            )}
           </Space>
         }
         extra={
@@ -217,6 +251,27 @@ const PredictionHistory = () => {
           </Space>
         }
       >
+        {!isLoggedIn && (
+          <Alert
+            type="info"
+            message="登录提示"
+            description={
+              <div>
+                <p>🔐 预测历史记录功能需要登录账户才能使用</p>
+                <p>💡 登录后，系统会自动保存您的预测记录，方便查看和管理</p>
+                <p>📊 支持单点预测、批量预测、日前预测等所有类型的记录</p>
+              </div>
+            }
+            action={
+              <Button type="primary" icon={<LoginOutlined />} onClick={() => window.location.reload()}>
+                前往登录
+              </Button>
+            }
+            style={{ marginBottom: 16 }}
+            showIcon
+          />
+        )}
+        
         {loading ? (
           <div style={{ textAlign: 'center', padding: '50px 0' }}>
             <Spin size="large" />
@@ -224,7 +279,7 @@ const PredictionHistory = () => {
               <Text>正在加载历史记录...</Text>
             </div>
           </div>
-        ) : history.length > 0 ? (
+        ) : isLoggedIn && history.length > 0 ? (
           <Table
             columns={columns}
             dataSource={history}
@@ -241,7 +296,11 @@ const PredictionHistory = () => {
         ) : (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="暂无预测历史记录"
+            description={
+              isLoggedIn ? 
+                "暂无预测历史记录" : 
+                "请登录账户查看预测历史记录"
+            }
           />
         )}
       </Card>

@@ -15,17 +15,21 @@ import {
   Alert,
   Spin,
   Typography,
-  message
+  message,
+  Tag
 } from 'antd';
 import {
   ThunderboltOutlined,
   CalculatorOutlined,
-  ExperimentOutlined
+  ExperimentOutlined,
+  UserOutlined,
+  LoginOutlined
 } from '@ant-design/icons';
 import moment from 'moment';
 import { predictionApi } from '../../service/prediction';
 import useAISystem from '../../hooks/useAISystem';
 import AISystemStatus from '../../components/common/AISystemStatus';
+import { useTokenStore } from '../../stores';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -34,6 +38,10 @@ const SinglePrediction = () => {
   const [form] = Form.useForm();
   const [predicting, setPredicting] = useState(false);
   const [result, setResult] = useState(null);
+  
+  // 获取用户登录状态
+  const { auth } = useTokenStore();
+  const isLoggedIn = !!auth?.token;
   
   // 使用AI系统管理hook
   const {
@@ -79,7 +87,11 @@ const SinglePrediction = () => {
       
       if (response.data && response.data.success) {
         setResult(response.data.data);
-        message.success('预测完成！');
+        if (isLoggedIn) {
+          message.success('预测完成！历史记录已保存');
+        } else {
+          message.success('预测完成！登录后可保存历史记录');
+        }
         console.log('✅ 预测结果:', response.data.data);
       } else {
         console.log('❌ 预测失败:', response.data);
@@ -168,6 +180,29 @@ const SinglePrediction = () => {
               onInitialize={initializeSystem}
               onLoadModels={loadModels}
             />
+
+            {/* 登录状态提示 */}
+            {!isLoggedIn && (
+              <Alert
+                type="info"
+                message="历史记录提示"
+                description={
+                  <div>
+                    <span>💡 登录后可自动保存预测历史记录 </span>
+                    <Tag color="green" style={{ marginLeft: 8 }}>
+                      <UserOutlined /> 建议登录
+                    </Tag>
+                  </div>
+                }
+                style={{ marginBottom: 16 }}
+                showIcon
+                action={
+                  <Button size="small" icon={<LoginOutlined />} onClick={() => window.location.reload()}>
+                    去登录
+                  </Button>
+                }
+              />
+            )}
 
             <Form
               form={form}

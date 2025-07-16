@@ -12,19 +12,23 @@ import {
   Alert,
   Spin,
   Tabs,
-  message
+  message,
+  Tag
 } from 'antd';
 import {
   CalendarOutlined,
   BarChartOutlined,
   ThunderboltOutlined,
   DownloadOutlined,
-  ExperimentOutlined
+  ExperimentOutlined,
+  UserOutlined,
+  LoginOutlined
 } from '@ant-design/icons';
 import moment from 'moment';
 import { predictionApi } from '../../service/prediction';
 import useAISystem from '../../hooks/useAISystem';
 import AISystemStatus from '../../components/common/AISystemStatus';
+import { useTokenStore } from '../../stores';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -35,6 +39,10 @@ const DayAheadPrediction = () => {
   const [selectedModel, setSelectedModel] = useState(null);
   const [targetDate, setTargetDate] = useState(moment().add(1, 'day'));
   const [results, setResults] = useState(null);
+  
+  // 获取用户登录状态
+  const { auth } = useTokenStore();
+  const isLoggedIn = !!auth?.token;
   
   // 使用AI系统管理hook
   const {
@@ -79,7 +87,12 @@ const DayAheadPrediction = () => {
         }
         
         setResults(resultData);
-        message.success(`日前预测完成！共生成${resultData.predictions.length}个时间点的预测结果`);
+        const pointCount = resultData.predictions.length;
+        if (isLoggedIn) {
+          message.success(`日前预测完成！共生成${pointCount}个时间点的预测结果，历史记录已保存`);
+        } else {
+          message.success(`日前预测完成！共生成${pointCount}个时间点的预测结果，登录后可保存历史记录`);
+        }
       } else {
         console.error('❌ 日前预测失败:', response.data);
         message.error(response.data?.error || '日前预测失败');
@@ -152,6 +165,29 @@ const DayAheadPrediction = () => {
               onInitialize={initializeSystem}
               onLoadModels={loadModels}
             />
+
+            {/* 登录状态提示 */}
+            {!isLoggedIn && (
+              <Alert
+                type="info"
+                message="历史记录提示"
+                description={
+                  <div>
+                    <span>💡 登录后可自动保存日前预测历史记录 </span>
+                    <Tag color="green" style={{ marginLeft: 8 }}>
+                      <UserOutlined /> 建议登录
+                    </Tag>
+                  </div>
+                }
+                style={{ marginBottom: 16 }}
+                showIcon
+                action={
+                  <Button size="small" icon={<LoginOutlined />} onClick={() => window.location.reload()}>
+                    去登录
+                  </Button>
+                }
+              />
+            )}
 
             <div style={{ marginBottom: 16 }}>
               <Alert

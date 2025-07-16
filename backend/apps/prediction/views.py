@@ -545,31 +545,64 @@ def analyze_prediction_error(request):
         return {"success": False, "error": str(e)}
 
 @router.get("/history")
-@method_decorator(login_required)
 def get_prediction_history(request):
     """获取用户预测历史"""
     try:
-        histories = PredictionHistory.objects.filter(user=request.user).order_by('-created_at')[:50]
+        # 如果用户已登录，返回用户的历史记录；否则返回空列表
+        if request.user.is_authenticated:
+            histories = PredictionHistory.objects.filter(user=request.user).order_by('-created_at')[:50]
+        else:
+            # 未登录用户返回空历史记录
+            return {"success": True, "data": []}
         
         history_data = []
         for history in histories:
+            # 根据预测类型处理不同的数据结构
+            input_summary = {
+                'timestamp': history.input_data.get('timestamp', 'N/A'),
+                'temperature': history.input_data.get('temperature', 'N/A')
+            }
+            
+            prediction_summary = {}
+            
+            if history.prediction_type == 'single':
+                prediction_summary = {
+                    'predicted_load': history.prediction_result.get('predicted_load', 'N/A')
+                }
+            elif history.prediction_type == 'batch':
+                results = history.prediction_result.get('results', [])
+                if results:
+                    prediction_summary = {
+                        'predicted_load': f"批量结果 ({len(results)} 个点)"
+                    }
+                else:
+                    prediction_summary = {
+                        'predicted_load': '批量结果'
+                    }
+            elif history.prediction_type == 'day_ahead':
+                # 日前预测显示日期和总点数
+                target_date = history.input_data.get('target_date', 'N/A')
+                predictions = history.prediction_result.get('predictions', [])
+                prediction_summary = {
+                    'predicted_load': f"日前预测 ({len(predictions)} 个点)" if predictions else "日前预测"
+                }
+                input_summary['target_date'] = target_date
+            
             history_data.append({
                 'id': history.id,
                 'model_name': history.model.name,
                 'prediction_type': history.prediction_type,
                 'created_at': history.created_at.isoformat(),
-                'input_summary': {
-                    'timestamp': history.input_data.get('timestamp', 'N/A'),
-                    'temperature': history.input_data.get('temperature', 'N/A')
-                },
-                'prediction_summary': {
-                    'predicted_load': history.prediction_result.get('predicted_load', 'N/A')
-                }
+                'input_summary': input_summary,
+                'prediction_summary': prediction_summary
             })
         
         return {"success": True, "data": history_data}
         
     except Exception as e:
+        import traceback
+        print(f"❌ 获取预测历史失败: {str(e)}")
+        print(f"详细错误: {traceback.format_exc()}")
         return {"success": False, "error": str(e)}
 
 @router.get("/dashboard")
