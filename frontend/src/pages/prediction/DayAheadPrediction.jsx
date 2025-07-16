@@ -72,8 +72,8 @@ const DayAheadPrediction = () => {
         const resultData = response.data.data;
         console.log('✅ 预测成功，分析结果数据:', resultData);
         
-        // 验证数据结构
-        if (!resultData.predictions || !Array.isArray(resultData.predictions)) {
+        // 验证数据结构 - 正确的路径是 resultData.prediction.predictions
+        if (!resultData.prediction || !resultData.prediction.predictions || !Array.isArray(resultData.prediction.predictions)) {
           console.error('❌ 预测数据格式错误:', resultData);
           message.error('预测数据格式错误');
           return;
@@ -87,7 +87,7 @@ const DayAheadPrediction = () => {
         }
         
         setResults(resultData);
-        const pointCount = resultData.predictions.length;
+        const pointCount = resultData.prediction.predictions.length;
         if (isLoggedIn) {
           message.success(`日前预测完成！共生成${pointCount}个时间点的预测结果，历史记录已保存`);
         } else {
