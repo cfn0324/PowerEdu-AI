@@ -29,6 +29,7 @@ import moment from 'moment';
 import { predictionApi } from '../../service/prediction';
 import useAISystem from '../../hooks/useAISystem';
 import AISystemStatus from '../../components/common/AISystemStatus';
+import SafeVisualization from '../../components/common/SafeVisualization';
 import { useTokenStore } from '../../stores';
 
 const { Title, Text } = Typography;
@@ -426,16 +427,12 @@ const SinglePrediction = () => {
                 {result.visualization && result.visualization.html ? (
                   <div>
                     <Title level={4}>预测分析</Title>
-                    <div 
-                      dangerouslySetInnerHTML={{ 
-                        __html: result.visualization.html 
-                      }}
-                      style={{ 
-                        border: '1px solid #d9d9d9',
-                        borderRadius: '6px',
-                        overflow: 'hidden',
-                        minHeight: '400px'
-                      }}
+                    <SafeVisualization
+                      html={result.visualization.html}
+                      height="400px"
+                      title="单点负荷预测分析"
+                      errorTitle="图表加载失败"
+                      errorDescription="预测分析图表生成失败或数据为空"
                     />
                   </div>
                 ) : result.visualization && result.visualization.error ? (

@@ -29,6 +29,7 @@ import {
 import { predictionApi } from '../../service/prediction';
 import useAISystem from '../../hooks/useAISystem';
 import AISystemStatus from '../../components/common/AISystemStatus';
+import SafeVisualization from '../../components/common/SafeVisualization';
 import { useTokenStore } from '../../stores';
 
 const { Title, Text } = Typography;
@@ -499,18 +500,25 @@ const BatchPrediction = () => {
               </Row>
 
               {/* 可视化图表 */}
-              {results.visualization && (
+              {results.visualization && results.visualization.html ? (
                 <div style={{ marginBottom: 16 }}>
                   <Title level={4}>负荷预测曲线</Title>
-                  <div 
-                    dangerouslySetInnerHTML={{ 
-                      __html: results.visualization.html 
-                    }}
-                    style={{ 
-                      border: '1px solid #d9d9d9',
-                      borderRadius: '6px',
-                      overflow: 'hidden'
-                    }}
+                  <SafeVisualization
+                    html={results.visualization.html}
+                    height="400px"
+                    title="批量负荷预测曲线"
+                    errorTitle="图表加载失败"
+                    errorDescription="批量预测图表生成失败或数据为空"
+                  />
+                </div>
+              ) : (
+                <div style={{ marginBottom: 16 }}>
+                  <Title level={4}>负荷预测曲线</Title>
+                  <Alert
+                    type="warning"
+                    message="图表加载失败"
+                    description="批量预测图表生成失败或数据为空"
+                    showIcon
                   />
                 </div>
               )}

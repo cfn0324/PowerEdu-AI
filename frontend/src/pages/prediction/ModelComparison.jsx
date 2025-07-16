@@ -19,6 +19,7 @@ import {
   ReloadOutlined
 } from '@ant-design/icons';
 import { predictionApi } from '../../service/prediction';
+import SafeVisualization from '../../components/common/SafeVisualization';
 
 const { Title, Text } = Typography;
 
@@ -241,21 +242,28 @@ const ModelComparison = () => {
             />
 
             {/* 性能可视化图表 */}
-            {performance?.visualization && (
+            {performance?.visualization && performance.visualization.html ? (
               <div style={{ marginTop: 24 }}>
                 <Title level={4}>性能可视化对比</Title>
-                <div 
-                  dangerouslySetInnerHTML={{ 
-                    __html: performance.visualization.html 
-                  }}
-                  style={{ 
-                    border: '1px solid #d9d9d9',
-                    borderRadius: '6px',
-                    overflow: 'hidden'
-                  }}
+                <SafeVisualization
+                  html={performance.visualization.html}
+                  height="400px"
+                  title="模型性能对比图表"
+                  errorTitle="图表加载失败"
+                  errorDescription="模型性能对比图表生成失败或数据为空"
                 />
               </div>
-            )}
+            ) : performance?.visualization ? (
+              <div style={{ marginTop: 24 }}>
+                <Title level={4}>性能可视化对比</Title>
+                <Alert
+                  type="warning"
+                  message="图表加载失败"
+                  description="模型性能对比图表生成失败或数据为空"
+                  showIcon
+                />
+              </div>
+            ) : null}
           </>
         ) : (
           <div style={{ textAlign: 'center', padding: '50px 0', color: '#999' }}>

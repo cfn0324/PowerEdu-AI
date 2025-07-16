@@ -28,6 +28,7 @@ import moment from 'moment';
 import { predictionApi } from '../../service/prediction';
 import useAISystem from '../../hooks/useAISystem';
 import AISystemStatus from '../../components/common/AISystemStatus';
+import SafeVisualization from '../../components/common/SafeVisualization';
 import { useTokenStore } from '../../stores';
 
 const { Title, Text } = Typography;
@@ -84,6 +85,8 @@ const DayAheadPrediction = () => {
         } else {
           console.log('📈 可视化数据结构:', resultData.visualization);
           console.log('📈 主图表数据:', resultData.visualization.main_chart);
+          console.log('📈 分布图数据:', resultData.visualization.distribution_chart);
+          console.log('📈 统计图数据:', resultData.visualization.statistics_chart);
         }
         
         setResults(resultData);
@@ -389,16 +392,12 @@ const DayAheadPrediction = () => {
                     key="main"
                   >
                     {results.visualization && results.visualization.main_chart && results.visualization.main_chart.html ? (
-                      <div 
-                        dangerouslySetInnerHTML={{ 
-                          __html: results.visualization.main_chart.html 
-                        }}
-                        style={{ 
-                          border: '1px solid #d9d9d9',
-                          borderRadius: '6px',
-                          overflow: 'hidden',
-                          minHeight: '400px'
-                        }}
+                      <SafeVisualization
+                        html={results.visualization.main_chart.html}
+                        height="400px"
+                        title="日前负荷预测曲线"
+                        errorTitle="图表加载失败"
+                        errorDescription="负荷曲线图表生成失败或数据为空"
                       />
                     ) : (
                       <Alert
@@ -419,7 +418,7 @@ const DayAheadPrediction = () => {
                     } 
                     key="distribution"
                   >
-                    {results.visualization.distribution_chart && (
+                    {results.visualization.distribution_chart && results.visualization.distribution_chart.html ? (
                       <div>
                         <div style={{ marginBottom: 16 }}>
                           <Title level={4}>时段负荷分布</Title>
@@ -459,17 +458,21 @@ const DayAheadPrediction = () => {
                           </Row>
                         </div>
                         
-                        <div 
-                          dangerouslySetInnerHTML={{ 
-                            __html: results.visualization.distribution_chart.html 
-                          }}
-                          style={{ 
-                            border: '1px solid #d9d9d9',
-                            borderRadius: '6px',
-                            overflow: 'hidden'
-                          }}
+                        <SafeVisualization
+                          html={results.visualization.distribution_chart.html}
+                          height="400px"
+                          title="负荷分布饼图"
+                          errorTitle="图表加载失败"
+                          errorDescription="负荷分布图表生成失败或数据为空"
                         />
                       </div>
+                    ) : (
+                      <Alert
+                        type="warning"
+                        message="图表加载失败"
+                        description="负荷分布图表生成失败或数据为空"
+                        showIcon
+                      />
                     )}
                   </TabPane>
                   
@@ -482,16 +485,20 @@ const DayAheadPrediction = () => {
                     } 
                     key="statistics"
                   >
-                    {results.visualization.statistics_chart && (
-                      <div 
-                        dangerouslySetInnerHTML={{ 
-                          __html: results.visualization.statistics_chart.html 
-                        }}
-                        style={{ 
-                          border: '1px solid #d9d9d9',
-                          borderRadius: '6px',
-                          overflow: 'hidden'
-                        }}
+                    {results.visualization.statistics_chart && results.visualization.statistics_chart.html ? (
+                      <SafeVisualization
+                        html={results.visualization.statistics_chart.html}
+                        height="400px"
+                        title="统计指标图表"
+                        errorTitle="图表加载失败"
+                        errorDescription="统计指标图表生成失败或数据为空"
+                      />
+                    ) : (
+                      <Alert
+                        type="warning"
+                        message="图表加载失败"
+                        description="统计指标图表生成失败或数据为空"
+                        showIcon
                       />
                     )}
                   </TabPane>

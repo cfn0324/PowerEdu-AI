@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 import base64
 import io
+import time
 from datetime import datetime, timedelta
 
 class Visualizer:
@@ -157,8 +158,11 @@ class Visualizer:
             fig.update_yaxes(title_text="影响权重", row=2, col=2)
             
             return {
-                'html': fig.to_html(include_plotlyjs=True),
+                'html': fig.to_html(include_plotlyjs='cdn', div_id=f"plot_{int(time.time())}", 
+                                   config={'displayModeBar': False, 'responsive': True}),
                 'json': fig.to_json(),
+                'plot_div': fig.to_html(include_plotlyjs=False, div_id=f"plot_{int(time.time())}", 
+                                       config={'displayModeBar': False, 'responsive': True}),
                 'summary': {
                     'predicted_load': prediction_value,
                     'model_used': prediction_result.get('model_used', '未知'),
@@ -182,8 +186,11 @@ class Visualizer:
             simple_fig.update_layout(title="预测结果")
             
             return {
-                'html': simple_fig.to_html(include_plotlyjs=True),
+                'html': simple_fig.to_html(include_plotlyjs='cdn', div_id=f"plot_error_{int(time.time())}", 
+                                           config={'displayModeBar': False, 'responsive': True}),
                 'json': simple_fig.to_json(),
+                'plot_div': simple_fig.to_html(include_plotlyjs=False, div_id=f"plot_error_{int(time.time())}", 
+                                               config={'displayModeBar': False, 'responsive': True}),
                 'summary': {
                     'predicted_load': prediction_result.get('predicted_load', 0),
                     'model_used': prediction_result.get('model_used', '未知'),
@@ -248,8 +255,11 @@ class Visualizer:
         )
         
         return {
-            'html': fig.to_html(include_plotlyjs=True),
+            'html': fig.to_html(include_plotlyjs='cdn', div_id=f"batch_plot_{int(time.time())}", 
+                               config={'displayModeBar': False, 'responsive': True}),
             'json': fig.to_json(),
+            'plot_div': fig.to_html(include_plotlyjs=False, div_id=f"batch_plot_{int(time.time())}", 
+                                   config={'displayModeBar': False, 'responsive': True}),
             'statistics': {
                 'total_points': len(loads),
                 'average_load': avg_load,
@@ -389,15 +399,18 @@ class Visualizer:
             
             return {
                 'main_chart': {
-                    'html': main_fig.to_html(include_plotlyjs=True),
+                    'html': main_fig.to_html(include_plotlyjs='cdn', div_id=f"main_chart_{int(time.time())}", 
+                                           config={'displayModeBar': False, 'responsive': True}),
                     'json': main_fig.to_json()
                 },
                 'distribution_chart': {
-                    'html': distribution_fig.to_html(include_plotlyjs=True),
+                    'html': distribution_fig.to_html(include_plotlyjs='cdn', div_id=f"distribution_chart_{int(time.time())}", 
+                                                    config={'displayModeBar': False, 'responsive': True}),
                     'json': distribution_fig.to_json()
                 },
                 'statistics_chart': {
-                    'html': stats_fig.to_html(include_plotlyjs=True),
+                    'html': stats_fig.to_html(include_plotlyjs='cdn', div_id=f"statistics_chart_{int(time.time())}", 
+                                             config={'displayModeBar': False, 'responsive': True}),
                     'json': stats_fig.to_json()
                 },
                 'summary': {
@@ -422,15 +435,18 @@ class Visualizer:
             
             return {
                 'main_chart': {
-                    'html': simple_fig.to_html(include_plotlyjs=True),
+                    'html': simple_fig.to_html(include_plotlyjs='cdn', div_id=f"main_chart_error_{int(time.time())}", 
+                                              config={'displayModeBar': False, 'responsive': True}),
                     'json': simple_fig.to_json()
                 },
                 'distribution_chart': {
-                    'html': simple_fig.to_html(include_plotlyjs=True),
+                    'html': simple_fig.to_html(include_plotlyjs='cdn', div_id=f"distribution_chart_error_{int(time.time())}", 
+                                              config={'displayModeBar': False, 'responsive': True}),
                     'json': simple_fig.to_json()
                 },
                 'statistics_chart': {
-                    'html': simple_fig.to_html(include_plotlyjs=True),
+                    'html': simple_fig.to_html(include_plotlyjs='cdn', div_id=f"statistics_chart_error_{int(time.time())}", 
+                                              config={'displayModeBar': False, 'responsive': True}),
                     'json': simple_fig.to_json()
                 },
                 'summary': {
