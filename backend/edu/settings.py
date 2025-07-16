@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'apps.user',
     'apps.course',
     'apps.prediction',  # AI预测模块
+    'apps.knowledge',  # 大模型知识库模块
 ]
 
 MIDDLEWARE = [

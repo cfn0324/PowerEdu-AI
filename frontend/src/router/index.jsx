@@ -5,6 +5,8 @@ import Detail from "../pages/detail";
 import Profile from "../pages/profile";
 import Courses from "../pages/courses";
 import PredictionDashboard from "../pages/prediction/PredictionDashboard";
+import KnowledgeHome from "../pages/knowledge";
+import KnowledgeChat from "../pages/knowledge/Chat";
 
 const router = createBrowserRouter([
   {
@@ -30,6 +32,14 @@ const router = createBrowserRouter([
       {
         path: "prediction/",
         element: <PredictionDashboard/>
+      },
+      {
+        path: "knowledge/",
+        element: <KnowledgeHome/>
+      },
+      {
+        path: "knowledge/chat/:kbId",
+        element: <KnowledgeChat/>
       }
     ],
   },

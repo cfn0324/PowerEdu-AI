@@ -1,0 +1,390 @@
+"""
+简化的RAG系统实现，避免sklearn依赖问题
+"""
+import os
+import json
+import logging
+import hashlib
+import asyncio
+from typing import List, Dict, Optional, Tuple, Any
+from datetime import datetime
+import uuid
+
+# 文档处理
+try:
+    import PyPDF2
+    HAS_PDF = True
+except ImportError:
+    HAS_PDF = False
+
+try:
+    import docx
+    HAS_DOCX = True
+except ImportError:
+    HAS_DOCX = False
+
+try:
+    from markdown import markdown
+    from bs4 import BeautifulSoup
+    HAS_MARKDOWN = True
+except ImportError:
+    HAS_MARKDOWN = False
+
+# 向量化和检索
+import numpy as np
+
+# 文本处理
+try:
+    import jieba
+    HAS_JIEBA = True
+except ImportError:
+    HAS_JIEBA = False
+
+import re
+
+logger = logging.getLogger(__name__)
+
+
+class DocumentProcessor:
+    """文档处理器"""
+    
+    @staticmethod
+    def process_file(file_path: str) -> Tuple[str, Dict]:
+        """处理单个文件"""
+        file_ext = os.path.splitext(file_path)[1].lower()
+        
+        if file_ext == '.txt':
+            return DocumentProcessor._process_txt(file_path)
+        elif file_ext == '.md':
+            return DocumentProcessor._process_markdown(file_path)
+        elif file_ext == '.pdf' and HAS_PDF:
+            return DocumentProcessor._process_pdf(file_path)
+        elif file_ext in ['.docx', '.doc'] and HAS_DOCX:
+            return DocumentProcessor._process_docx(file_path)
+        elif file_ext == '.html':
+            return DocumentProcessor._process_html(file_path)
+        else:
+            raise ValueError(f"不支持的文件格式: {file_ext}")
+    
+    @staticmethod
+    def _process_txt(file_path: str) -> Tuple[str, Dict]:
+        """处理TXT文件"""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except UnicodeDecodeError:
+            with open(file_path, 'r', encoding='gbk') as f:
+                content = f.read()
+        
+        metadata = {
+            'source': file_path,
+            'type': 'txt',
+            'size': len(content)
+        }
+        
+        return content, metadata
+    
+    @staticmethod
+    def _process_markdown(file_path: str) -> Tuple[str, Dict]:
+        """处理Markdown文件"""
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # 提取纯文本（移除markdown语法）
+        if HAS_MARKDOWN:
+            html = markdown(content)
+            soup = BeautifulSoup(html, 'html.parser')
+            text = soup.get_text()
+        else:
+            # 简单的markdown语法移除
+            text = re.sub(r'[#*`_\[\]()]', '', content)
+        
+        metadata = {
+            'source': file_path,
+            'type': 'markdown',
+            'size': len(text)
+        }
+        
+        return text, metadata
+    
+    @staticmethod
+    def _process_pdf(file_path: str) -> Tuple[str, Dict]:
+        """处理PDF文件"""
+        text = ""
+        with open(file_path, 'rb') as f:
+            reader = PyPDF2.PdfReader(f)
+            for page in reader.pages:
+                text += page.extract_text() + "\n"
+        
+        metadata = {
+            'source': file_path,
+            'type': 'pdf',
+            'pages': len(reader.pages),
+            'size': len(text)
+        }
+        
+        return text, metadata
+    
+    @staticmethod
+    def _process_docx(file_path: str) -> Tuple[str, Dict]:
+        """处理DOCX文件"""
+        doc = docx.Document(file_path)
+        text = ""
+        for paragraph in doc.paragraphs:
+            text += paragraph.text + "\n"
+        
+        metadata = {
+            'source': file_path,
+            'type': 'docx',
+            'paragraphs': len(doc.paragraphs),
+            'size': len(text)
+        }
+        
+        return text, metadata
+    
+    @staticmethod
+    def _process_html(file_path: str) -> Tuple[str, Dict]:
+        """处理HTML文件"""
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        if HAS_MARKDOWN:
+            soup = BeautifulSoup(content, 'html.parser')
+            text = soup.get_text()
+        else:
+            # 简单的HTML标签移除
+            text = re.sub(r'<[^>]+>', '', content)
+        
+        metadata = {
+            'source': file_path,
+            'type': 'html',
+            'size': len(text)
+        }
+        
+        return text, metadata
+
+
+class TextSplitter:
+    """文本分块器"""
+    
+    def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 200):
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
+    
+    def split_text(self, text: str, metadata: Dict = None) -> List[Dict]:
+        """分割文本为块"""
+        # 简单的文本分割
+        chunks = []
+        start = 0
+        
+        while start < len(text):
+            end = start + self.chunk_size
+            chunk = text[start:end]
+            
+            # 尝试在句号处分割
+            if end < len(text):
+                last_period = chunk.rfind('。')
+                if last_period > self.chunk_size // 2:
+                    chunk = chunk[:last_period + 1]
+                    end = start + last_period + 1
+            
+            chunk_metadata = {
+                'chunk_index': len(chunks),
+                'chunk_size': len(chunk),
+                'chunk_word_count': len(chunk.split()),
+                **(metadata or {})
+            }
+            
+            chunks.append({
+                'content': chunk.strip(),
+                'metadata': chunk_metadata
+            })
+            
+            start = end - self.chunk_overlap
+        
+        return chunks
+
+
+class SimpleEmbedding:
+    """简单的嵌入模型实现"""
+    
+    def __init__(self):
+        self.is_fitted = True  # 简化版本，不需要训练
+    
+    def encode(self, texts: List[str]) -> np.ndarray:
+        """编码文本为向量"""
+        # 简单的字符级向量化
+        vocab = set()
+        for text in texts:
+            vocab.update(text)
+        vocab = sorted(list(vocab))
+        
+        vectors = []
+        for text in texts:
+            vector = [text.count(char) for char in vocab]
+            vectors.append(vector)
+        
+        return np.array(vectors, dtype=float)
+
+
+class VectorStore:
+    """向量存储器"""
+    
+    def __init__(self, embedding_model=None):
+        self.embedding_model = embedding_model or SimpleEmbedding()
+        self.chunks = []
+        self.vectors = None
+        self.metadata = []
+    
+    def add_documents(self, chunks: List[Dict]):
+        """添加文档块"""
+        for chunk in chunks:
+            self.chunks.append(chunk['content'])
+            self.metadata.append(chunk['metadata'])
+        
+        # 重新计算向量
+        self._update_vectors()
+    
+    def _update_vectors(self):
+        """更新向量"""
+        if self.chunks:
+            self.vectors = self.embedding_model.encode(self.chunks)
+    
+    def similarity_search(self, query: str, top_k: int = 5, threshold: float = 0.1) -> List[Dict]:
+        """相似度搜索"""
+        if not self.chunks or self.vectors is None:
+            return []
+        
+        # 编码查询
+        query_vector = self.embedding_model.encode([query])
+        
+        # 简单的余弦相似度计算
+        def cosine_sim(a, b):
+            dot_product = np.dot(a, b)
+            norm_a = np.linalg.norm(a)
+            norm_b = np.linalg.norm(b)
+            if norm_a == 0 or norm_b == 0:
+                return 0
+            return dot_product / (norm_a * norm_b)
+        
+        similarities = []
+        for vector in self.vectors:
+            sim = cosine_sim(query_vector[0], vector)
+            similarities.append(sim)
+        similarities = np.array(similarities)
+        
+        # 获取top_k结果
+        top_indices = np.argsort(similarities)[::-1][:top_k]
+        
+        results = []
+        for idx in top_indices:
+            score = similarities[idx]
+            if score >= threshold:
+                results.append({
+                    'content': self.chunks[idx],
+                    'score': float(score),
+                    'metadata': self.metadata[idx],
+                    'index': int(idx)
+                })
+        
+        return results
+
+
+class LLMInterface:
+    """大语言模型接口"""
+    
+    def __init__(self, model_config: Dict):
+        self.model_config = model_config
+        self.model_type = model_config.get('type', 'mock')
+    
+    async def generate(self, prompt: str, context: str = "") -> str:
+        """生成回答"""
+        if self.model_type == 'mock':
+            return f"基于提供的上下文信息：{context[:100]}...\n\n对于问题「{prompt}」，这是一个模拟回答。请配置真实的大语言模型以获得准确回答。"
+        
+        # 这里可以添加其他模型的实现
+        return "请配置大语言模型"
+
+
+class RAGSystem:
+    """RAG系统主类"""
+    
+    def __init__(self, knowledge_base_id: int):
+        self.knowledge_base_id = knowledge_base_id
+        self.document_processor = DocumentProcessor()
+        self.text_splitter = TextSplitter()
+        self.vector_store = VectorStore()
+        self.llm = None
+        
+    def set_llm(self, model_config: Dict):
+        """设置大语言模型"""
+        self.llm = LLMInterface(model_config)
+    
+    async def add_document(self, file_path: str, document_id: Optional[int] = None) -> Dict:
+        """添加文档"""
+        try:
+            # 处理文档
+            content, metadata = self.document_processor.process_file(file_path)
+            
+            # 分块
+            chunks = self.text_splitter.split_text(content, metadata)
+            
+            # 添加到向量存储
+            self.vector_store.add_documents(chunks)
+            
+            return {
+                'status': 'success',
+                'chunks_count': len(chunks),
+                'content_length': len(content),
+                'metadata': metadata
+            }
+            
+        except Exception as e:
+            logger.error(f"处理文档失败: {e}")
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+    
+    async def query(self, question: str, top_k: int = 5) -> Dict:
+        """查询知识库"""
+        try:
+            # 检索相关文档
+            relevant_docs = self.vector_store.similarity_search(question, top_k=top_k)
+            
+            if not relevant_docs:
+                return {
+                    'answer': '抱歉，我在知识库中没有找到相关信息。',
+                    'sources': [],
+                    'confidence': 0.0
+                }
+            
+            # 构建上下文
+            context = "\n".join([doc['content'] for doc in relevant_docs])
+            
+            # 生成回答
+            if self.llm:
+                answer = await self.llm.generate(question, context)
+            else:
+                answer = f"基于知识库内容，找到了 {len(relevant_docs)} 个相关片段，但未配置大语言模型。请配置模型以获得智能回答。"
+            
+            return {
+                'answer': answer,
+                'sources': [
+                    {
+                        'content': doc['content'][:200] + '...' if len(doc['content']) > 200 else doc['content'],
+                        'score': doc['score'],
+                        'metadata': doc['metadata']
+                    }
+                    for doc in relevant_docs
+                ],
+                'confidence': relevant_docs[0]['score'] if relevant_docs else 0.0
+            }
+            
+        except Exception as e:
+            logger.error(f"查询失败: {e}")
+            return {
+                'answer': f'查询过程中出现错误: {str(e)}',
+                'sources': [],
+                'confidence': 0.0
+            }

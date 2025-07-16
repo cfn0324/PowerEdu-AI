@@ -48,3 +48,17 @@ plotly>=5.17.0                   # 交互式图表库
 # python-dotenv>=1.0.0           # 环境变量管理
 # django-extensions>=3.2.0       # Django扩展工具
 # django-debug-toolbar>=4.0.0    # 调试工具栏
+
+# ================================
+# 大模型知识库（RAG）相关依赖
+# ================================
+PyPDF2>=3.0.0                    # PDF文档处理
+python-docx>=0.8.11              # Word文档处理
+markdown>=3.5.0                  # Markdown处理
+beautifulsoup4>=4.12.0           # HTML解析
+langchain>=0.1.0                 # LangChain框架
+jieba>=0.42.1                    # 中文分词
+openai>=1.0.0                    # OpenAI API支持
+anthropic>=0.8.0                 # Anthropic API支持
+zhipuai>=2.0.0                   # 智谱AI API支持
+requests>=2.31.0                 # HTTP请求库

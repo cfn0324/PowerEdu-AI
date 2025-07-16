@@ -59,7 +59,9 @@ const Header = () => {
           <li>
             <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }}>首页</Link>
           </li>
-          <li>知识库</li>
+          <li>
+            <Link to="/knowledge" style={{ textDecoration: 'none', color: 'inherit' }}>知识库</Link>
+          </li>
           <li>
             <Link to="/courses" style={{ textDecoration: 'none', color: 'inherit' }}>在线课程</Link>
           </li>

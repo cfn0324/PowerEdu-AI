@@ -11,3 +11,6 @@ app.add_router("/course", course_views.router, tags=["课程相关"])
 
 from apps.prediction import views as prediction_views
 app.add_router("/prediction", prediction_views.router, tags=["AI预测相关"])
+
+from apps.knowledge import views as knowledge_views
+app.add_router("/knowledge", knowledge_views.router, tags=["大模型知识库"])
