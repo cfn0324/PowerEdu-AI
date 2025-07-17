@@ -151,3 +151,11 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
+
+# 文件上传设置
+# 文件上传的最大大小 (100MB)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100MB
+
+# 请求体最大大小
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000  # 增加字段数量限制

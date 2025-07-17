@@ -10,7 +10,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.contrib.auth.models import User
+from apps.user.models import User
 from django.core.paginator import Paginator
 from typing import List, Dict, Optional
 import json
@@ -50,6 +50,14 @@ def get_rag_system():
     if _rag_system is None:
         _rag_system = RAGSystem()
     return _rag_system
+
+
+def get_user_from_request(request):
+    """从请求中获取用户，如果用户不存在则抛出异常"""
+    try:
+        return User.objects.get(id=request.auth)
+    except User.DoesNotExist:
+        raise ValueError("用户不存在，请重新登录")
 
 
 @router.get("/", summary="知识库系统概览")
@@ -152,8 +160,10 @@ def get_knowledge_bases(request, page: int = 1, size: int = 10):
 def create_knowledge_base(request, data: KnowledgeBaseCreateSchema):
     """创建新的知识库"""
     try:
+        # 获取用户
+        user = get_user_from_request(request)
+        
         # 创建数据库记录
-        user = User.objects.get(id=request.auth)
         kb = KnowledgeBase.objects.create(
             name=data.name,
             description=data.description,
@@ -163,6 +173,9 @@ def create_knowledge_base(request, data: KnowledgeBaseCreateSchema):
         # 简单返回成功，不需要特殊的RAG系统初始化
         return {"success": True, "data": {"id": kb.id, "name": kb.name}}
             
+    except ValueError as e:
+        # 用户不存在的错误
+        return {"success": False, "error": str(e)}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -205,7 +218,7 @@ def delete_knowledge_base(request, kb_id: int):
     """删除知识库"""
     try:
         kb = KnowledgeBase.objects.get(id=kb_id, is_active=True)
-        user = User.objects.get(id=request.auth)
+        user = get_user_from_request(request)
         
         # 检查权限（只有创建者可以删除）
         if kb.created_by != user:
@@ -219,6 +232,9 @@ def delete_knowledge_base(request, kb_id: int):
         
     except KnowledgeBase.DoesNotExist:
         return {"success": False, "error": "知识库不存在"}
+    except ValueError as e:
+        # 用户不存在的错误
+        return {"success": False, "error": str(e)}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -271,7 +287,7 @@ def delete_document(request, doc_id: int):
     """删除文档"""
     try:
         document = Document.objects.get(id=doc_id)
-        user = User.objects.get(id=request.auth)
+        user = get_user_from_request(request)
         
         # 检查权限（只有上传者或知识库创建者可以删除）
         if document.uploaded_by != user and document.knowledge_base.created_by != user:
@@ -288,6 +304,9 @@ def delete_document(request, doc_id: int):
         
     except Document.DoesNotExist:
         return {"success": False, "error": "文档不存在"}
+    except ValueError as e:
+        # 用户不存在的错误
+        return {"success": False, "error": str(e)}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -298,7 +317,7 @@ def upload_document(request, kb_id: int, file: UploadedFile = File(...)):
     try:
         # 检查知识库是否存在
         kb = KnowledgeBase.objects.get(id=kb_id, is_active=True)
-        user = User.objects.get(id=request.auth)
+        user = get_user_from_request(request)
         
         # 检查文件类型
         allowed_extensions = ['.md', '.pdf', '.txt', '.docx', '.html']
@@ -331,7 +350,9 @@ def upload_document(request, kb_id: int, file: UploadedFile = File(...)):
         # 异步处理文档
         try:
             rag_system = get_rag_system()
+            logger.info(f"开始处理文档: {file.name}, 文件大小: {file.size}")
             result = rag_system.process_document(kb_id, file_path)
+            logger.info(f"文档处理结果: {result}")
             
             if result.get('success', False):
                 # 更新文档状态
@@ -351,15 +372,20 @@ def upload_document(request, kb_id: int, file: UploadedFile = File(...)):
             else:
                 document.status = 'failed'
                 document.save()
+                logger.error(f"文档处理失败: {result.get('error', '未知错误')}")
                 return {"success": False, "error": f"文档处理失败: {result.get('error', '未知错误')}"}
             
         except Exception as e:
             document.status = 'failed'
             document.save()
+            logger.error(f"文档处理异常: {str(e)}", exc_info=True)
             return {"success": False, "error": f"文档处理失败: {str(e)}"}
             
     except KnowledgeBase.DoesNotExist:
         return {"success": False, "error": "知识库不存在"}
+    except ValueError as e:
+        # 用户不存在的错误
+        return {"success": False, "error": str(e)}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -370,7 +396,7 @@ def batch_upload_documents(request, kb_id: int):
     try:
         # 检查知识库是否存在
         kb = KnowledgeBase.objects.get(id=kb_id, is_active=True)
-        user = User.objects.get(id=request.auth)
+        user = get_user_from_request(request)
         
         # 从request.FILES中获取所有上传的文件
         files = request.FILES.getlist('files')
@@ -416,7 +442,9 @@ def batch_upload_documents(request, kb_id: int):
                 
                 # 处理文档
                 rag_system = get_rag_system()
+                logger.info(f"开始批量处理文档: {file.name}, 文件大小: {file.size}")
                 result = rag_system.process_document(kb_id, file_path)
+                logger.info(f"批量文档处理结果: {result}")
                 
                 if result.get('success', False):
                     # 更新文档状态
@@ -434,6 +462,7 @@ def batch_upload_documents(request, kb_id: int):
                 else:
                     document.status = 'failed'
                     document.save()
+                    logger.error(f"批量文档处理失败: {result.get('error', '未知错误')}")
                     results.append({
                         "file_name": file.name,
                         "success": False,
@@ -441,6 +470,7 @@ def batch_upload_documents(request, kb_id: int):
                     })
                 
             except Exception as e:
+                logger.error(f"批量文档处理异常 {file.name}: {str(e)}", exc_info=True)
                 results.append({
                     "file_name": file.name if hasattr(file, 'name') else 'unknown',
                     "success": False,
@@ -465,6 +495,9 @@ def batch_upload_documents(request, kb_id: int):
             
     except KnowledgeBase.DoesNotExist:
         return {"success": False, "error": "知识库不存在"}
+    except ValueError as e:
+        # 用户不存在的错误
+        return {"success": False, "error": str(e)}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -477,7 +510,7 @@ def ask_question(request, data: QARequestSchema):
     try:
         # 检查知识库
         kb = KnowledgeBase.objects.get(id=data.kb_id, is_active=True)
-        user = User.objects.get(id=request.auth)
+        user = get_user_from_request(request)
         
         # 获取或创建会话
         if data.session_id:
@@ -564,6 +597,9 @@ def ask_question(request, data: QARequestSchema):
         
     except KnowledgeBase.DoesNotExist:
         return {"success": False, "error": "知识库不存在"}
+    except ValueError as e:
+        # 用户不存在的错误
+        return {"success": False, "error": str(e)}
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()
@@ -575,7 +611,7 @@ def ask_question(request, data: QARequestSchema):
 def get_qa_sessions(request, kb_id: int = None, page: int = 1, size: int = 10):
     """获取用户的问答会话列表"""
     try:
-        user = User.objects.get(id=request.auth)
+        user = get_user_from_request(request)
         
         sessions = QASession.objects.filter(user=user)
         if kb_id:
@@ -608,6 +644,9 @@ def get_qa_sessions(request, kb_id: int = None, page: int = 1, size: int = 10):
                 "pages": paginator.num_pages
             }
         }
+    except ValueError as e:
+        # 用户不存在的错误
+        return {"success": False, "error": str(e)}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
