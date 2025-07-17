@@ -105,7 +105,7 @@ python admin_manager.py create
 
 # 创建Django超级用户（Django Admin）
 python manage.py createsuperuser
-123
+
 # 重置前端管理员密码
 python admin_manager.py reset admin -p newpassword
 
