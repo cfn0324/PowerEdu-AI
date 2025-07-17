@@ -333,20 +333,25 @@ def upload_document(request, kb_id: int, file: UploadedFile = File(...)):
             rag_system = get_rag_system()
             result = rag_system.process_document(kb_id, file_path)
             
-            # 更新文档状态
-            document.status = 'completed'
-            document.chunk_count = result['chunk_count']
-            document.processed_at = datetime.now()
-            document.save()
-            
-            return {
-                "success": True,
-                "data": {
-                    "document_id": document.id,
-                    "chunk_count": result['chunk_count'],
-                    "status": "completed"
+            if result.get('success', False):
+                # 更新文档状态
+                document.status = 'completed'
+                document.chunk_count = result.get('chunk_count', 0)
+                document.processed_at = datetime.now()
+                document.save()
+                
+                return {
+                    "success": True,
+                    "data": {
+                        "document_id": document.id,
+                        "chunk_count": result.get('chunk_count', 0),
+                        "status": "completed"
+                    }
                 }
-            }
+            else:
+                document.status = 'failed'
+                document.save()
+                return {"success": False, "error": f"文档处理失败: {result.get('error', '未知错误')}"}
             
         except Exception as e:
             document.status = 'failed'
@@ -359,13 +364,18 @@ def upload_document(request, kb_id: int, file: UploadedFile = File(...)):
         return {"success": False, "error": str(e)}
 
 
-@router.post("/documents/batch-upload", summary="批量上传文档", **auth)
-def batch_upload_documents(request, kb_id: int, files: List[UploadedFile] = File(...)):
+@router.post("/documents/{kb_id}/batch-upload", summary="批量上传文档", **auth)
+def batch_upload_documents(request, kb_id: int):
     """批量上传文档到知识库"""
     try:
         # 检查知识库是否存在
         kb = KnowledgeBase.objects.get(id=kb_id, is_active=True)
         user = User.objects.get(id=request.auth)
+        
+        # 从request.FILES中获取所有上传的文件
+        files = request.FILES.getlist('files')
+        if not files:
+            return {"success": False, "error": "没有选择文件"}
         
         results = []
         allowed_extensions = ['.md', '.pdf', '.txt', '.docx', '.html']
@@ -408,22 +418,31 @@ def batch_upload_documents(request, kb_id: int, files: List[UploadedFile] = File
                 rag_system = get_rag_system()
                 result = rag_system.process_document(kb_id, file_path)
                 
-                # 更新文档状态
-                document.status = 'completed'
-                document.chunk_count = result['chunk_count']
-                document.processed_at = datetime.now()
-                document.save()
-                
-                results.append({
-                    "file_name": file.name,
-                    "success": True,
-                    "document_id": document.id,
-                    "chunk_count": result['chunk_count']
-                })
+                if result.get('success', False):
+                    # 更新文档状态
+                    document.status = 'completed'
+                    document.chunk_count = result.get('chunk_count', 0)
+                    document.processed_at = datetime.now()
+                    document.save()
+                    
+                    results.append({
+                        "file_name": file.name,
+                        "success": True,
+                        "document_id": document.id,
+                        "chunk_count": result.get('chunk_count', 0)
+                    })
+                else:
+                    document.status = 'failed'
+                    document.save()
+                    results.append({
+                        "file_name": file.name,
+                        "success": False,
+                        "error": f"文档处理失败: {result.get('error', '未知错误')}"
+                    })
                 
             except Exception as e:
                 results.append({
-                    "file_name": file.name,
+                    "file_name": file.name if hasattr(file, 'name') else 'unknown',
                     "success": False,
                     "error": str(e)
                 })

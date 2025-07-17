@@ -25,8 +25,7 @@ export const knowledgeApi = {
       'Content-Type': 'multipart/form-data'
     }
   }),
-  batchUploadDocuments: (kbId, formData, config = {}) => api.post(`${API_BASE}/documents/batch-upload`, formData, {
-    params: { kb_id: kbId },
+  batchUploadDocuments: (kbId, formData, config = {}) => api.post(`${API_BASE}/documents/${kbId}/batch-upload`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     },
