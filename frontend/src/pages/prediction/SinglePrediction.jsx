@@ -25,6 +25,7 @@ import {
   UserOutlined,
   LoginOutlined
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import moment from 'moment';
 import { predictionApi } from '../../service/prediction';
 import useAISystem from '../../hooks/useAISystem';
@@ -40,8 +41,9 @@ const SinglePrediction = () => {
   const [predicting, setPredicting] = useState(false);
   const [result, setResult] = useState(null);
   
-  // 获取用户登录状态
+  // 获取用户登录状态和导航功能
   const { auth } = useTokenStore();
+  const navigate = useNavigate();
   const isLoggedIn = !!auth?.token;
   
   // 使用AI系统管理hook
@@ -185,7 +187,7 @@ const SinglePrediction = () => {
                 style={{ marginBottom: 16 }}
                 showIcon
                 action={
-                  <Button size="small" icon={<LoginOutlined />} onClick={() => window.location.reload()}>
+                  <Button size="small" icon={<LoginOutlined />} onClick={() => navigate('/login')}>
                     去登录
                   </Button>
                 }

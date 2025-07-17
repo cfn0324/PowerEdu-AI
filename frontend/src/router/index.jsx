@@ -10,8 +10,13 @@ import KnowledgeChat from "../pages/knowledge/Chat";
 import DocumentManage from "../pages/knowledge/DocumentManage";
 import KnowledgeDetail from "../pages/knowledge/KnowledgeDetail";
 import ModelSettings from "../pages/knowledge/ModelSettings";
+import Login from "../pages/login";
 
 const router = createBrowserRouter([
+  {
+    path: "/login",
+    element: <Login />,
+  },
   {
     path: "/",
     element: <Layout />,

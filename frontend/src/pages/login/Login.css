@@ -1,0 +1,120 @@
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+}
+
+.login-background {
+  width: 100%;
+  max-width: 400px;
+  position: relative;
+}
+
+.login-content {
+  position: relative;
+  z-index: 2;
+}
+
+.login-card {
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+  border-radius: 20px;
+  border: none;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.login-card .ant-card-head {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  text-align: center;
+}
+
+.login-card .ant-card-head-title {
+  color: white;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.login-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.login-card .ant-card-body {
+  padding: 32px;
+}
+
+.login-description {
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.login-description h3 {
+  color: #1890ff;
+  margin-bottom: 16px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.login-description p {
+  margin: 8px 0;
+  color: #666;
+  font-size: 14px;
+  text-align: left;
+}
+
+.login-actions {
+  width: 100%;
+}
+
+.login-actions .ant-btn {
+  height: 48px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.login-actions .ant-btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s ease;
+}
+
+.login-actions .ant-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+.login-actions .ant-btn:not(.ant-btn-primary) {
+  background: transparent;
+  border: 2px solid #e0e0e0;
+  color: #666;
+  transition: all 0.3s ease;
+}
+
+.login-actions .ant-btn:not(.ant-btn-primary):hover {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+/* 响应式设计 */
+@media (max-width: 480px) {
+  .login-page {
+    padding: 10px;
+  }
+  
+  .login-card .ant-card-body {
+    padding: 20px;
+  }
+  
+  .login-description h3 {
+    font-size: 18px;
+  }
+}

@@ -22,6 +22,7 @@ import {
   LoginOutlined,
   UserOutlined
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import moment from 'moment';
 import { predictionApi } from '../../service/prediction';
 import { useTokenStore } from '../../stores';
@@ -34,8 +35,9 @@ const PredictionHistory = () => {
   const [detailVisible, setDetailVisible] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   
-  // 获取用户登录状态
+  // 获取用户登录状态和导航功能
   const { auth } = useTokenStore();
+  const navigate = useNavigate();
   const isLoggedIn = !!auth?.token;
 
   useEffect(() => {
@@ -258,7 +260,7 @@ const PredictionHistory = () => {
               </div>
             }
             action={
-              <Button type="primary" icon={<LoginOutlined />} onClick={() => window.location.reload()}>
+              <Button type="primary" icon={<LoginOutlined />} onClick={() => navigate('/login')}>
                 前往登录
               </Button>
             }
