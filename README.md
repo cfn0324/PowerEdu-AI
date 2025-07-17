@@ -54,6 +54,7 @@ npm install
 ```bash
 cd backend
 python manage.py migrate
+python manage.py init_data  # 创建默认admin用户
 python manage.py runserver
 ```
 
@@ -74,6 +75,43 @@ npm run dev
 - **AI预测**: http://localhost:5173/prediction  
 - **后端API**: http://localhost:8000/api
 - **管理后台**: http://localhost:8000/admin
+
+### 🔑 默认账户
+
+系统会自动创建以下默认管理员账户：
+- **用户名**: admin
+- **密码**: 123456
+
+> 注意：首次运行时，启动脚本会自动执行 `python manage.py init_data` 命令来创建默认账户。
+
+### 🛠️ 管理员工具
+
+项目提供了强大的管理员管理工具 `admin_manager.py`：
+
+```bash
+# 进入后端目录
+cd backend
+
+# 查看帮助
+python admin_manager.py --help
+
+# 创建默认管理员
+python admin_manager.py create
+
+# 重置密码
+python admin_manager.py reset admin -p newpassword
+
+# 验证密码
+python admin_manager.py verify admin 123456
+
+# 查看用户信息
+python admin_manager.py info admin
+
+# 列出所有用户
+python admin_manager.py list
+```
+
+详细使用指南请参考：[管理员工具指南](./backend/ADMIN_GUIDE.md)
 
 ## 🤖 AI预测系统
 
@@ -126,7 +164,9 @@ npm run dev
 ```
 PowerEdu-AI/
 ├── backend/                     # Django后端服务
-│   ├── manage.py               # 项目管理脚本
+│   ├── manage.py               # Django项目管理脚本
+│   ├── admin_manager.py        # 统一管理员管理工具
+│   ├── ADMIN_GUIDE.md          # 管理员工具使用指南
 │   ├── edu/                    # 核心配置模块
 │   ├── apps/                   # 业务应用模块
 │   │   ├── user/              # 用户管理

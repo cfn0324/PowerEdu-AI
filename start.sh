@@ -26,6 +26,7 @@ pip3 install -r requirements.txt
 echo "初始化Django数据库..."
 cd backend
 python3 manage.py migrate
+python3 manage.py init_data
 
 # 启动Django后端（后台运行）
 echo "🚀 启动Django后端服务..."

@@ -17,9 +17,9 @@ Write-Host ""
 Write-Host "[1/6] Checking Python..." -ForegroundColor Yellow
 try {
     $pythonVersion = python --version 2>&1
-    Write-Host "✓ $pythonVersion" -ForegroundColor Green
+    Write-Host "SUCCESS: $pythonVersion" -ForegroundColor Green
 } catch {
-    Write-Host "✗ Python not found. Please install Python 3.8+" -ForegroundColor Red
+    Write-Host "ERROR: Python not found. Please install Python 3.8+" -ForegroundColor Red
     Read-Host "Press Enter to exit"
     exit 1
 }
@@ -28,9 +28,9 @@ try {
 Write-Host "[2/6] Checking Node.js..." -ForegroundColor Yellow
 try {
     $nodeVersion = node --version 2>&1
-    Write-Host "✓ Node.js $nodeVersion" -ForegroundColor Green
+    Write-Host "SUCCESS: Node.js $nodeVersion" -ForegroundColor Green
 } catch {
-    Write-Host "✗ Node.js not found. Please install Node.js 18.15+" -ForegroundColor Red
+    Write-Host "ERROR: Node.js not found. Please install Node.js 18.15+" -ForegroundColor Red
     Read-Host "Press Enter to exit"
     exit 1
 }
@@ -38,18 +38,19 @@ try {
 # Install Python dependencies
 Write-Host "[3/6] Installing Python dependencies..." -ForegroundColor Yellow
 pip install -r requirements.txt -q
-Write-Host "✓ Python dependencies installed" -ForegroundColor Green
+Write-Host "SUCCESS: Python dependencies installed" -ForegroundColor Green
 
 # Initialize Django database
 Write-Host "[4/6] Initializing Django database..." -ForegroundColor Yellow
 Set-Location backend
 python manage.py migrate --verbosity=0
-Write-Host "✓ Database initialized" -ForegroundColor Green
+python manage.py init_data
+Write-Host "SUCCESS: Database initialized" -ForegroundColor Green
 
 # Start Django backend
 Write-Host "[5/6] Starting Django backend..." -ForegroundColor Yellow
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$(Get-Location)'; python manage.py runserver" -WindowStyle Normal
-Write-Host "✓ Backend service started" -ForegroundColor Green
+Write-Host "SUCCESS: Backend service started" -ForegroundColor Green
 
 Set-Location ..
 
@@ -61,7 +62,7 @@ if (!(Test-Path "node_modules")) {
     npm install --silent
 }
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$(Get-Location)'; npm run dev" -WindowStyle Normal
-Write-Host "✓ Frontend service started" -ForegroundColor Green
+Write-Host "SUCCESS: Frontend service started" -ForegroundColor Green
 
 Set-Location ..
 
@@ -73,21 +74,21 @@ Start-Sleep -Seconds 3
 # Display completion info
 Write-Host ""
 Write-Host "================================" -ForegroundColor Green
-Write-Host "        🎉 SUCCESS!            " -ForegroundColor Green  
+Write-Host "        SUCCESS!               " -ForegroundColor Green  
 Write-Host "================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "📱 Access URLs:" -ForegroundColor Cyan
+Write-Host "Access URLs:" -ForegroundColor Cyan
 Write-Host "   Main Platform: http://localhost:5173" -ForegroundColor White
 Write-Host "   AI Prediction: http://localhost:5173/prediction" -ForegroundColor White
 Write-Host "   Backend API: http://localhost:8000" -ForegroundColor White
 Write-Host "   Admin Panel: http://localhost:8000/admin" -ForegroundColor White
 Write-Host "   API Docs: http://localhost:8000/api/docs" -ForegroundColor White
 Write-Host ""
-Write-Host "🔑 Admin Account:" -ForegroundColor Cyan
+Write-Host "Admin Account:" -ForegroundColor Cyan
 Write-Host "   Username: admin" -ForegroundColor White
 Write-Host "   Password: 123456" -ForegroundColor White
 Write-Host ""
-Write-Host "💡 AI prediction features are fully integrated!" -ForegroundColor Yellow
+Write-Host "AI prediction features are fully integrated!" -ForegroundColor Yellow
 Write-Host ""
 
 Read-Host "Press Enter to exit"
