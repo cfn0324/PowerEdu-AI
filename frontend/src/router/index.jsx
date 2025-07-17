@@ -7,6 +7,7 @@ import Courses from "../pages/courses";
 import PredictionDashboard from "../pages/prediction/PredictionDashboard";
 import KnowledgeHome from "../pages/knowledge";
 import KnowledgeChat from "../pages/knowledge/Chat";
+import DocumentManage from "../pages/knowledge/DocumentManage";
 
 const router = createBrowserRouter([
   {
@@ -36,6 +37,10 @@ const router = createBrowserRouter([
       {
         path: "knowledge/",
         element: <KnowledgeHome/>
+      },
+      {
+        path: "knowledge/documents/:kbId",
+        element: <DocumentManage/>
       },
       {
         path: "knowledge/chat/:kbId",

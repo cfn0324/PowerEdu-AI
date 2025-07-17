@@ -22,7 +22,6 @@ class KnowledgeBaseSchema(ModelSchema):
 class KnowledgeBaseCreateSchema(Schema):
     name: str = Field(..., description="知识库名称")
     description: str = Field("", description="知识库描述")
-    documents_dir: Optional[str] = Field(None, description="初始文档目录路径")
 
 
 class DocumentSchema(ModelSchema):

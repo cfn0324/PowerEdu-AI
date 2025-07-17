@@ -129,15 +129,8 @@ def create_knowledge_base(request, data: KnowledgeBaseCreateSchema):
             created_by=user
         )
         
-        # 初始化RAG系统中的知识库
-        rag_system = get_rag_system()
-        success = rag_system.create_knowledge_base(kb.id, data.documents_dir)
-        
-        if success:
-            return {"success": True, "data": {"id": kb.id, "name": kb.name}}
-        else:
-            kb.delete()
-            return {"success": False, "error": "RAG系统初始化失败"}
+        # 简单返回成功，不需要特殊的RAG系统初始化
+        return {"success": True, "data": {"id": kb.id, "name": kb.name}}
             
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -239,6 +232,7 @@ def upload_document(request, kb_id: int, file: UploadedFile = File(...)):
             knowledge_base=kb,
             title=os.path.splitext(file.name)[0],
             file_path=file_path,
+            file_name=file.name,
             file_type=file_extension[1:],  # 去掉点号
             file_size=file.size,
             uploaded_by=user,
@@ -269,6 +263,97 @@ def upload_document(request, kb_id: int, file: UploadedFile = File(...)):
             document.status = 'failed'
             document.save()
             return {"success": False, "error": f"文档处理失败: {str(e)}"}
+            
+    except KnowledgeBase.DoesNotExist:
+        return {"success": False, "error": "知识库不存在"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.post("/documents/batch-upload", summary="批量上传文档", **auth)
+def batch_upload_documents(request, kb_id: int, files: List[UploadedFile] = File(...)):
+    """批量上传文档到知识库"""
+    try:
+        # 检查知识库是否存在
+        kb = KnowledgeBase.objects.get(id=kb_id, is_active=True)
+        user = User.objects.get(id=request.auth)
+        
+        results = []
+        allowed_extensions = ['.md', '.pdf', '.txt', '.docx', '.html']
+        
+        for file in files:
+            try:
+                # 检查文件类型
+                file_extension = os.path.splitext(file.name)[1].lower()
+                
+                if file_extension not in allowed_extensions:
+                    results.append({
+                        "file_name": file.name,
+                        "success": False,
+                        "error": f"不支持的文件类型: {file_extension}"
+                    })
+                    continue
+                
+                # 保存文件
+                upload_dir = f"media/knowledge_bases/{kb_id}/documents"
+                os.makedirs(upload_dir, exist_ok=True)
+                
+                file_path = os.path.join(upload_dir, file.name)
+                with open(file_path, 'wb') as f:
+                    for chunk in file.chunks():
+                        f.write(chunk)
+                
+                # 创建文档记录
+                document = Document.objects.create(
+                    knowledge_base=kb,
+                    title=os.path.splitext(file.name)[0],
+                    file_path=file_path,
+                    file_name=file.name,
+                    file_type=file_extension[1:],  # 去掉点号
+                    file_size=file.size,
+                    uploaded_by=user,
+                    status='pending'
+                )
+                
+                # 处理文档
+                rag_system = get_rag_system()
+                result = rag_system.process_document(kb_id, file_path)
+                
+                # 更新文档状态
+                document.status = 'completed'
+                document.chunk_count = result['chunk_count']
+                document.processed_at = datetime.now()
+                document.save()
+                
+                results.append({
+                    "file_name": file.name,
+                    "success": True,
+                    "document_id": document.id,
+                    "chunk_count": result['chunk_count']
+                })
+                
+            except Exception as e:
+                results.append({
+                    "file_name": file.name,
+                    "success": False,
+                    "error": str(e)
+                })
+        
+        # 统计结果
+        success_count = sum(1 for r in results if r['success'])
+        total_count = len(results)
+        
+        return {
+            "success": True,
+            "data": {
+                "results": results,
+                "summary": {
+                    "total": total_count,
+                    "success": success_count,
+                    "failed": total_count - success_count
+                }
+            }
+        }
             
     except KnowledgeBase.DoesNotExist:
         return {"success": False, "error": "知识库不存在"}

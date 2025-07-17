@@ -25,6 +25,13 @@ export const knowledgeApi = {
       'Content-Type': 'multipart/form-data'
     }
   }),
+  batchUploadDocuments: (kbId, formData, config = {}) => api.post(`${API_BASE}/documents/batch-upload`, formData, {
+    params: { kb_id: kbId },
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    },
+    ...config
+  }),
   deleteDocument: (documentId) => api.delete(`${API_BASE}/documents/${documentId}`),
   processDocument: (documentId, options = {}) => api.post(`${API_BASE}/documents/${documentId}/process`, options),
 
@@ -46,12 +53,5 @@ export const knowledgeApi = {
   testModelConfig: (configId) => api.get(`${API_BASE}/models/test`, { params: { config_id: configId } }),
 
   // 搜索功能
-  searchDocuments: (data) => api.post(`${API_BASE}/search`, data),
-  
-  // 批量操作
-  batchUploadDocuments: (data) => api.post(`${API_BASE}/documents/batch-upload`, data),
-  batchProcessDocuments: (kbId, options = {}) => api.post(`${API_BASE}/documents/batch-process`, {
-    kb_id: kbId,
-    ...options
-  })
+  searchDocuments: (data) => api.post(`${API_BASE}/search`, data)
 };

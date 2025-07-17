@@ -79,7 +79,13 @@ const KnowledgeHome = () => {
         message.success('知识库创建成功');
         setCreateModalVisible(false);
         form.resetFields();
-        loadData();
+        
+        // 创建成功后跳转到文档管理页面进行文档上传
+        const kbId = response.data.data.id;
+        message.info('请上传初始文档到知识库', 3);
+        setTimeout(() => {
+          window.location.href = `/knowledge/documents/${kbId}`;
+        }, 1000);
       } else {
         message.error(response.data?.error || '创建失败');
       }
@@ -366,13 +372,12 @@ const KnowledgeHome = () => {
             />
           </Form.Item>
 
-          <Form.Item
-            name="documents_dir"
-            label="初始文档目录"
-            help="可选：服务器上的文档目录路径，创建知识库时会自动导入该目录下的文档"
-          >
-            <Input placeholder="如：/data/documents/power_equipment/" />
-          </Form.Item>
+          <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 6, padding: 12, marginBottom: 16 }}>
+            <Text type="secondary">
+              📝 提示：知识库创建完成后，系统将跳转到文档管理页面，您可以上传知识库文档。
+              支持格式：MD、PDF、TXT、DOCX、HTML
+            </Text>
+          </div>
 
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Space>

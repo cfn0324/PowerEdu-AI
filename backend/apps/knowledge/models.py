@@ -42,6 +42,7 @@ class Document(models.Model):
     knowledge_base = models.ForeignKey(KnowledgeBase, on_delete=models.CASCADE, related_name='documents')
     title = models.CharField(max_length=500, verbose_name="文档标题")
     file_path = models.CharField(max_length=1000, verbose_name="文件路径")
+    file_name = models.CharField(max_length=255, default="", verbose_name="文件名")
     file_type = models.CharField(max_length=10, choices=DOCUMENT_TYPES, verbose_name="文件类型")
     file_size = models.IntegerField(default=0, verbose_name="文件大小(bytes)")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="处理状态")

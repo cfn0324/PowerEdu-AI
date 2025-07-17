@@ -309,19 +309,24 @@ class LLMInterface:
 class RAGSystem:
     """RAG系统主类"""
     
-    def __init__(self, knowledge_base_id: int):
-        self.knowledge_base_id = knowledge_base_id
+    def __init__(self):
         self.document_processor = DocumentProcessor()
         self.text_splitter = TextSplitter()
-        self.vector_store = VectorStore()
-        self.llm = None
+        self.knowledge_bases = {}  # 存储每个知识库的向量存储
+        self.llm_configs = {}  # 存储LLM配置
         
-    def set_llm(self, model_config: Dict):
-        """设置大语言模型"""
-        self.llm = LLMInterface(model_config)
+    def get_or_create_vector_store(self, kb_id: int) -> VectorStore:
+        """获取或创建知识库的向量存储"""
+        if kb_id not in self.knowledge_bases:
+            self.knowledge_bases[kb_id] = VectorStore()
+        return self.knowledge_bases[kb_id]
     
-    async def add_document(self, file_path: str, document_id: Optional[int] = None) -> Dict:
-        """添加文档"""
+    def configure_llm(self, config_id: int, model_config: Dict):
+        """配置大语言模型"""
+        self.llm_configs[config_id] = LLMInterface(model_config)
+    
+    def process_document(self, kb_id: int, file_path: str, document_id: Optional[int] = None) -> Dict:
+        """处理文档"""
         try:
             # 处理文档
             content, metadata = self.document_processor.process_file(file_path)
@@ -329,12 +334,13 @@ class RAGSystem:
             # 分块
             chunks = self.text_splitter.split_text(content, metadata)
             
-            # 添加到向量存储
-            self.vector_store.add_documents(chunks)
+            # 获取向量存储并添加文档
+            vector_store = self.get_or_create_vector_store(kb_id)
+            vector_store.add_documents(chunks)
             
             return {
-                'status': 'success',
-                'chunks_count': len(chunks),
+                'success': True,
+                'chunk_count': len(chunks),
                 'content_length': len(content),
                 'metadata': metadata
             }
@@ -342,29 +348,36 @@ class RAGSystem:
         except Exception as e:
             logger.error(f"处理文档失败: {e}")
             return {
-                'status': 'error',
-                'error': str(e)
+                'success': False,
+                'error': str(e),
+                'chunk_count': 0
             }
     
-    async def query(self, question: str, top_k: int = 5) -> Dict:
-        """查询知识库"""
+    async def ask_question(self, kb_id: int, question: str, config_id: Optional[int] = None, 
+                          top_k: int = 5, threshold: float = 0.5) -> Dict:
+        """智能问答"""
         try:
+            # 获取向量存储
+            vector_store = self.get_or_create_vector_store(kb_id)
+            
             # 检索相关文档
-            relevant_docs = self.vector_store.similarity_search(question, top_k=top_k)
+            relevant_docs = vector_store.similarity_search(question, top_k=top_k, threshold=threshold)
             
             if not relevant_docs:
                 return {
                     'answer': '抱歉，我在知识库中没有找到相关信息。',
                     'sources': [],
-                    'confidence': 0.0
+                    'confidence': 0.0,
+                    'retrieved_chunks': []
                 }
             
             # 构建上下文
             context = "\n".join([doc['content'] for doc in relevant_docs])
             
             # 生成回答
-            if self.llm:
-                answer = await self.llm.generate(question, context)
+            llm = self.llm_configs.get(config_id) if config_id else None
+            if llm:
+                answer = await llm.generate(question, context)
             else:
                 answer = f"基于知识库内容，找到了 {len(relevant_docs)} 个相关片段，但未配置大语言模型。请配置模型以获得智能回答。"
             
@@ -378,13 +391,33 @@ class RAGSystem:
                     }
                     for doc in relevant_docs
                 ],
-                'confidence': relevant_docs[0]['score'] if relevant_docs else 0.0
+                'confidence': relevant_docs[0]['score'] if relevant_docs else 0.0,
+                'retrieved_chunks': relevant_docs,
+                'model_used': f"config_{config_id}" if config_id else "default"
             }
             
         except Exception as e:
-            logger.error(f"查询失败: {e}")
+            logger.error(f"问答失败: {e}")
             return {
                 'answer': f'查询过程中出现错误: {str(e)}',
                 'sources': [],
-                'confidence': 0.0
+                'confidence': 0.0,
+                'retrieved_chunks': [],
+                'model_used': "error"
+            }
+    
+    def get_knowledge_base_stats(self, kb_id: int) -> Dict:
+        """获取知识库统计信息"""
+        if kb_id in self.knowledge_bases:
+            vector_store = self.knowledge_bases[kb_id]
+            return {
+                'total_chunks': len(vector_store.chunks),
+                'total_documents': len(set(chunk.get('document_id', 0) for chunk in vector_store.metadata)),
+                'vector_dimension': vector_store.vectors.shape[1] if vector_store.vectors is not None else 0
+            }
+        else:
+            return {
+                'total_chunks': 0,
+                'total_documents': 0,
+                'vector_dimension': 0
             }
