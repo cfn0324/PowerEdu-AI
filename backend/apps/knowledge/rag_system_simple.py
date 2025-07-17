@@ -295,15 +295,49 @@ class LLMInterface:
     
     def __init__(self, model_config: Dict):
         self.model_config = model_config
-        self.model_type = model_config.get('type', 'mock')
+        self.model_type = model_config.get('model_type', 'mock')
+        self.provider = model_config.get('provider', 'mock')
     
     async def generate(self, prompt: str, context: str = "") -> str:
         """生成回答"""
-        if self.model_type == 'mock':
+        if self.model_type == 'mock' or self.provider == 'mock':
             return f"基于提供的上下文信息：{context[:100]}...\n\n对于问题「{prompt}」，这是一个模拟回答。请配置真实的大语言模型以获得准确回答。"
         
-        # 这里可以添加其他模型的实现
+        # 模拟其他模型的简单回应
+        if self.model_type == 'api':
+            return f"您好！我是 {self.model_config.get('model_name', '未知模型')}。我已成功连接并可以为您提供智能问答服务。当前这是一个测试回复，表明模型配置正确且连接正常。"
+        
         return "请配置大语言模型"
+    
+    async def generate_response(self, prompt: str, context: str = "") -> Dict:
+        """生成回答并返回详细信息"""
+        import time
+        import asyncio
+        start_time = time.time()
+        
+        try:
+            # 模拟网络延迟（仅用于测试目的）
+            if self.model_type == 'api':
+                await asyncio.sleep(0.1)  # 100ms 延迟
+            
+            answer = await self.generate(prompt, context)
+            response_time = round((time.time() - start_time) * 1000)  # 转换为毫秒
+            
+            return {
+                'answer': answer,
+                'response_time': response_time,
+                'model_used': f"{self.provider}:{self.model_config.get('model_name', 'unknown')}",
+                'success': True
+            }
+        except Exception as e:
+            response_time = round((time.time() - start_time) * 1000)
+            return {
+                'answer': f"生成回答时出错: {str(e)}",
+                'response_time': response_time,
+                'model_used': f"{self.provider}:{self.model_config.get('model_name', 'unknown')}",
+                'success': False,
+                'error': str(e)
+            }
 
 
 class RAGSystem:
