@@ -34,7 +34,7 @@ class ModelManager:
     
     def _init_models(self):
         """初始化所有模型"""
-        print("🤖 初始化机器学习模型...")
+        """初始化机器学习模型"""
         
         # 线性回归
         self.models['LinearRegression'] = LinearRegression()
@@ -57,7 +57,7 @@ class ModelManager:
                 min_samples_split=5,  # 最小分割样本数
                 min_samples_leaf=3    # 最小叶子样本数
             )
-            print("   ✅ GradientBoosting 初始化成功")
+
         except Exception as e:
             print(f"   ⚠️ GradientBoosting 初始化失败: {e}")
             # 如果初始化失败，从模型字典中移除
@@ -74,7 +74,7 @@ class ModelManager:
                 cache_size=500,  # 增加缓存大小
                 max_iter=1000    # 限制最大迭代次数
             )
-            print("   ✅ SVR 初始化成功")
+
         except Exception as e:
             print(f"   ⚠️ SVR 初始化失败: {e}")
             # 如果初始化失败，从模型字典中移除
@@ -98,7 +98,7 @@ class ModelManager:
                     verbosity=0,          # 关闭详细输出
                     n_jobs=1              # 单线程运行避免冲突
                 )
-                print("   ✅ XGBoost 初始化成功")
+
             except Exception as e:
                 print(f"   ⚠️ XGBoost 初始化失败: {e}")
                 # 如果初始化失败，从模型字典中移除
@@ -107,7 +107,7 @@ class ModelManager:
         else:
             print("   ⚠️ XGBoost 不可用，请安装: pip install xgboost")
         
-        print(f"✅ 初始化完成，共 {len(self.models)} 个模型")
+
     
     def train_all_models(self, X_train, y_train, X_test, y_test):
         """训练所有模型
@@ -118,10 +118,9 @@ class ModelManager:
             X_test: 测试特征
             y_test: 测试目标
         """
-        print("🏋️ 开始训练所有模型...")
+
         
         for name, model in self.models.items():
-            print(f"  训练 {name}...")
             try:
                 # 训练模型
                 model.fit(X_train, y_train)
@@ -147,7 +146,7 @@ class ModelManager:
                     'training_time': 0
                 }
                 
-                print(f"    {name}: MSE={mse:.6f}, R²={r2:.6f}")
+
                 
             except Exception as e:
                 print(f"    ❌ {name} 训练失败: {e}")
@@ -155,7 +154,7 @@ class ModelManager:
                 if name in self.models:
                     try:
                         del self.models[name]
-                        print(f"    已移除故障模型: {name}")
+
                     except:
                         pass
         

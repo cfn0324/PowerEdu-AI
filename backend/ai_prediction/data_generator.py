@@ -26,7 +26,7 @@ class DataGenerator:
         Returns:
             pandas.DataFrame: 训练数据
         """
-        print(f"📊 生成 {days} 天的训练数据...")
+
         
         # 生成时间序列
         start_date = datetime(2024, 1, 1)
@@ -93,7 +93,7 @@ class DataGenerator:
             })
         
         df = pd.DataFrame(data)
-        print(f"✅ 生成完成，共 {len(df)} 条数据")
+
         return df
     
     def _generate_temperature(self, timestamp):

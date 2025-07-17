@@ -86,14 +86,9 @@ npm run dev
 
 ### 🛠️ 管理员工具
 
-项目提供了强大的管理员管理工具 `admin_manager.py`：
-
 ```bash
 # 进入后端目录
 cd backend
-
-# 查看帮助
-python admin_manager.py --help
 
 # 创建默认管理员
 python admin_manager.py create
@@ -103,15 +98,7 @@ python admin_manager.py reset admin -p newpassword
 
 # 验证密码
 python admin_manager.py verify admin 123456
-
-# 查看用户信息
-python admin_manager.py info admin
-
-# 列出所有用户
-python admin_manager.py list
 ```
-
-详细使用指南请参考：[管理员工具指南](./backend/ADMIN_GUIDE.md)
 
 ## 🤖 AI预测系统
 
@@ -165,8 +152,7 @@ python admin_manager.py list
 PowerEdu-AI/
 ├── backend/                     # Django后端服务
 │   ├── manage.py               # Django项目管理脚本
-│   ├── admin_manager.py        # 统一管理员管理工具
-│   ├── ADMIN_GUIDE.md          # 管理员工具使用指南
+│   ├── admin_manager.py        # 管理员管理工具
 │   ├── edu/                    # 核心配置模块
 │   ├── apps/                   # 业务应用模块
 │   │   ├── user/              # 用户管理
