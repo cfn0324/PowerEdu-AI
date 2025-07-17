@@ -77,6 +77,38 @@ def knowledge_root(request):
     }
 
 
+@router.get("/stats", summary="获取系统统计信息")
+def get_system_stats(request):
+    """获取系统统计信息"""
+    try:
+        # 统计知识库数量
+        knowledge_bases_count = KnowledgeBase.objects.filter(is_active=True).count()
+        
+        # 统计文档数量
+        documents_count = Document.objects.count()
+        
+        # 统计会话数量
+        qa_sessions_count = QASession.objects.count()
+        
+        # 统计问答记录数量
+        qa_records_count = QARecord.objects.count()
+        
+        return {
+            "success": True,
+            "data": {
+                "stats": {
+                    "knowledge_bases": knowledge_bases_count,
+                    "documents": documents_count,
+                    "qa_sessions": qa_sessions_count,
+                    "qa_records": qa_records_count
+                }
+            }
+        }
+    except Exception as e:
+        logger.error(f"获取统计信息失败: {e}")
+        return {"success": False, "error": str(e)}
+
+
 # ==================== 知识库管理 ====================
 
 @router.get("/knowledge-bases", summary="获取知识库列表")
@@ -94,12 +126,11 @@ def get_knowledge_bases(request, page: int = 1, size: int = 10):
                 "id": kb.id,
                 "name": kb.name,
                 "description": kb.description,
-                "status": kb.status,
+                "is_active": kb.is_active,
                 "document_count": kb.documents.count(),
                 "created_at": kb.created_at.isoformat() if kb.created_at else None,
                 "updated_at": kb.updated_at.isoformat() if kb.updated_at else None,
-                "embedding_config_name": kb.embedding_config.name if kb.embedding_config else None,
-                "model_config_name": kb.model_config.name if kb.model_config else None,
+                "created_by": kb.created_by.username if kb.created_by else None,
             })
         
         return {
@@ -149,12 +180,43 @@ def get_knowledge_base(request, kb_id: int):
         return {
             "success": True,
             "data": {
-                "knowledge_base": kb,
+                "knowledge_base": {
+                    "id": kb.id,
+                    "name": kb.name,
+                    "description": kb.description,
+                    "is_active": kb.is_active,
+                    "created_at": kb.created_at.isoformat() if kb.created_at else None,
+                    "updated_at": kb.updated_at.isoformat() if kb.updated_at else None,
+                    "created_by": kb.created_by.username if kb.created_by else None,
+                },
                 "stats": stats,
                 "document_count": kb.documents.count(),
                 "qa_session_count": kb.qa_sessions.count()
             }
         }
+    except KnowledgeBase.DoesNotExist:
+        return {"success": False, "error": "知识库不存在"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.delete("/knowledge-bases/{kb_id}", summary="删除知识库", **auth)
+def delete_knowledge_base(request, kb_id: int):
+    """删除知识库"""
+    try:
+        kb = KnowledgeBase.objects.get(id=kb_id, is_active=True)
+        user = User.objects.get(id=request.auth)
+        
+        # 检查权限（只有创建者可以删除）
+        if kb.created_by != user:
+            return {"success": False, "error": "没有权限删除此知识库"}
+        
+        # 软删除（设置为不活跃）
+        kb.is_active = False
+        kb.save()
+        
+        return {"success": True, "message": "知识库已删除"}
+        
     except KnowledgeBase.DoesNotExist:
         return {"success": False, "error": "知识库不存在"}
     except Exception as e:
@@ -184,6 +246,7 @@ def get_documents(request, kb_id: int, page: int = 1, size: int = 10):
                 "file_type": doc.file_type,
                 "file_size": doc.file_size,
                 "status": doc.status,
+                "chunk_count": doc.chunk_count,
                 "processed_at": doc.processed_at.isoformat() if doc.processed_at else None,
                 "uploaded_at": doc.uploaded_at.isoformat() if doc.uploaded_at else None,
             })
@@ -200,6 +263,32 @@ def get_documents(request, kb_id: int, page: int = 1, size: int = 10):
         }
     except Exception as e:
         logger.error(f"获取文档列表失败: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@router.delete("/documents/{doc_id}", summary="删除文档", **auth)
+def delete_document(request, doc_id: int):
+    """删除文档"""
+    try:
+        document = Document.objects.get(id=doc_id)
+        user = User.objects.get(id=request.auth)
+        
+        # 检查权限（只有上传者或知识库创建者可以删除）
+        if document.uploaded_by != user and document.knowledge_base.created_by != user:
+            return {"success": False, "error": "没有权限删除此文档"}
+        
+        # 删除文件
+        if os.path.exists(document.file_path):
+            os.remove(document.file_path)
+        
+        # 删除数据库记录
+        document.delete()
+        
+        return {"success": True, "message": "文档已删除"}
+        
+    except Document.DoesNotExist:
+        return {"success": False, "error": "文档不存在"}
+    except Exception as e:
         return {"success": False, "error": str(e)}
 
 

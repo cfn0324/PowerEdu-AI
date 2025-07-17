@@ -26,12 +26,14 @@ import {
   EditOutlined,
   EyeOutlined
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { knowledgeApi } from '../../service/knowledge';
 import { useTokenStore } from '../../stores';
 
 const { Title, Text, Paragraph } = Typography;
 
 const KnowledgeHome = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [knowledgeBases, setKnowledgeBases] = useState([]);
   const [stats, setStats] = useState({});
@@ -84,7 +86,7 @@ const KnowledgeHome = () => {
         const kbId = response.data.data.id;
         message.info('请上传初始文档到知识库', 3);
         setTimeout(() => {
-          window.location.href = `/knowledge/documents/${kbId}`;
+          navigate(`/knowledge/documents/${kbId}`);
         }, 1000);
       } else {
         message.error(response.data?.error || '创建失败');
@@ -168,21 +170,21 @@ const KnowledgeHome = () => {
             <Button 
               type="text" 
               icon={<EyeOutlined />} 
-              onClick={() => window.location.href = `/knowledge/detail/${record.id}`}
+              onClick={() => navigate(`/knowledge/detail/${record.id}`)}
             />
           </Tooltip>
           <Tooltip title="管理文档">
             <Button 
               type="text" 
               icon={<FileTextOutlined />} 
-              onClick={() => window.location.href = `/knowledge/documents/${record.id}`}
+              onClick={() => navigate(`/knowledge/documents/${record.id}`)}
             />
           </Tooltip>
           <Tooltip title="智能问答">
             <Button 
               type="text" 
               icon={<MessageOutlined />} 
-              onClick={() => window.location.href = `/knowledge/chat/${record.id}`}
+              onClick={() => navigate(`/knowledge/chat/${record.id}`)}
             />
           </Tooltip>
           <Tooltip title="编辑">
@@ -208,7 +210,7 @@ const KnowledgeHome = () => {
         <Title level={3}>请先登录</Title>
         <Text type="secondary">您需要登录后才能使用大模型知识库功能</Text>
         <div style={{ marginTop: 16 }}>
-          <Button type="primary" onClick={() => window.location.href = '/login'}>
+          <Button type="primary" onClick={() => navigate('/login')}>
             前往登录
           </Button>
         </div>
@@ -285,8 +287,9 @@ const KnowledgeHome = () => {
         extra={
           <Space>
             <Button 
+              type="primary" 
               icon={<SettingOutlined />}
-              onClick={() => window.location.href = '/knowledge/settings'}
+              onClick={() => navigate('/knowledge/settings')}
             >
               模型配置
             </Button>
