@@ -34,14 +34,10 @@ class Command(BaseCommand):
             # 创建自定义用户模型的管理员
             custom_success = manager.create_admin()
             
-            # 创建Django Admin超级用户
-            django_success = manager.create_django_superuser()
-            
-            if custom_success or django_success:
+            if custom_success:
                 self.stdout.write(self.style.SUCCESS('\n✅ 系统默认数据初始化完成！'))
                 self.stdout.write('🔑 可以使用以下账户:')
                 self.stdout.write('   【前端登录】用户名: admin, 密码: 123456')
-                self.stdout.write('   【Django Admin】用户名: admin, 密码: 123456')
                 self.stdout.write('   Django Admin地址: http://localhost:8000/admin')
             else:
                 self.stdout.write(self.style.WARNING('\n⚠️  管理员用户已存在，跳过创建'))
