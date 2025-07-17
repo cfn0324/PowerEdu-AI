@@ -31,7 +31,7 @@ from .models import (
 )
 from .schemas import (
     KnowledgeBaseSchema, DocumentSchema, QASessionSchema, 
-    QARecordSchema, ModelConfigSchema, QARequestSchema,
+    QARecordSchema, ModelConfigSchema, ModelConfigCreateSchema, QARequestSchema,
     DocumentUploadSchema, KnowledgeBaseCreateSchema
 )
 
@@ -696,8 +696,9 @@ def get_model_configs(request):
                 "description": config.description,
                 "model_type": config.model_type,
                 "model_name": config.model_name,
-                "api_base": config.api_base,
+                "api_base_url": config.api_base_url,
                 "is_default": config.is_default,
+                "is_active": config.is_active,
                 "created_at": config.created_at.isoformat() if config.created_at else None,
             })
         
@@ -708,7 +709,7 @@ def get_model_configs(request):
 
 
 @router.post("/models/configs", summary="创建模型配置", **auth)
-def create_model_config(request, data: ModelConfigSchema):
+def create_model_config(request, data: ModelConfigCreateSchema):
     """创建模型配置"""
     try:
         # 如果设置为默认，先取消其他默认配置
@@ -718,6 +719,48 @@ def create_model_config(request, data: ModelConfigSchema):
         config = ModelConfig.objects.create(**data.dict())
         return {"success": True, "data": {"id": config.id, "name": config.name}}
         
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.put("/models/configs/{config_id}", summary="更新模型配置", **auth)
+def update_model_config(request, config_id: int, data: ModelConfigCreateSchema):
+    """更新模型配置"""
+    try:
+        config = ModelConfig.objects.get(id=config_id)
+        
+        # 如果设置为默认，先取消其他默认配置
+        if data.is_default:
+            ModelConfig.objects.filter(is_default=True).exclude(id=config_id).update(is_default=False)
+        
+        # 更新配置
+        for field, value in data.dict().items():
+            setattr(config, field, value)
+        config.save()
+        
+        return {"success": True, "data": {"id": config.id, "name": config.name}}
+        
+    except ModelConfig.DoesNotExist:
+        return {"success": False, "error": "模型配置不存在"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.delete("/models/configs/{config_id}", summary="删除模型配置", **auth)
+def delete_model_config(request, config_id: int):
+    """删除模型配置"""
+    try:
+        config = ModelConfig.objects.get(id=config_id)
+        
+        # 检查是否是默认配置
+        if config.is_default:
+            return {"success": False, "error": "不能删除默认配置，请先设置其他配置为默认"}
+        
+        config.delete()
+        return {"success": True, "message": "模型配置删除成功"}
+        
+    except ModelConfig.DoesNotExist:
+        return {"success": False, "error": "模型配置不存在"}
     except Exception as e:
         return {"success": False, "error": str(e)}
 

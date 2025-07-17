@@ -9,6 +9,7 @@ import KnowledgeHome from "../pages/knowledge";
 import KnowledgeChat from "../pages/knowledge/Chat";
 import DocumentManage from "../pages/knowledge/DocumentManage";
 import KnowledgeDetail from "../pages/knowledge/KnowledgeDetail";
+import ModelSettings from "../pages/knowledge/ModelSettings";
 
 const router = createBrowserRouter([
   {
@@ -38,6 +39,10 @@ const router = createBrowserRouter([
       {
         path: "knowledge/",
         element: <KnowledgeHome/>
+      },
+      {
+        path: "knowledge/settings",
+        element: <ModelSettings/>
       },
       {
         path: "knowledge/detail/:kbId",

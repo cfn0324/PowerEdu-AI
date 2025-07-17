@@ -135,6 +135,7 @@ class ModelConfig(models.Model):
     ]
     
     name = models.CharField(max_length=100, verbose_name="配置名称")
+    description = models.TextField(blank=True, verbose_name="配置描述")
     model_type = models.CharField(max_length=10, choices=MODEL_TYPES, verbose_name="模型类型")
     provider = models.CharField(max_length=20, choices=PROVIDERS, verbose_name="模型提供商")
     model_name = models.CharField(max_length=100, verbose_name="模型名称")
