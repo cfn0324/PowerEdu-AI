@@ -10,6 +10,7 @@ import KnowledgeChat from "../pages/knowledge/Chat";
 import DocumentManage from "../pages/knowledge/DocumentManage";
 import KnowledgeDetail from "../pages/knowledge/KnowledgeDetail";
 import ModelSettings from "../pages/knowledge/ModelSettings";
+import ConnectionTest from "../pages/knowledge/ConnectionTest";
 import Login from "../pages/login";
 
 const router = createBrowserRouter([
@@ -48,6 +49,10 @@ const router = createBrowserRouter([
       {
         path: "knowledge/settings",
         element: <ModelSettings/>
+      },
+      {
+        path: "knowledge/test",
+        element: <ConnectionTest/>
       },
       {
         path: "knowledge/detail/:kbId",

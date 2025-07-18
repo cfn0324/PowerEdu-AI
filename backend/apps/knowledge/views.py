@@ -770,7 +770,7 @@ def submit_feedback(request, qa_record_id: int, score: int, comment: str = ""):
 
 # ==================== 模型配置管理 ====================
 
-@router.get("/models/configs", summary="获取模型配置列表")
+@router.get("/models/configs", summary="获取模型配置列表", **auth)
 def get_model_configs(request):
     """获取模型配置列表"""
     try:
@@ -854,7 +854,7 @@ def delete_model_config(request, config_id: int):
         return {"success": False, "error": str(e)}
 
 
-@router.get("/models/test", summary="测试模型配置")
+@router.get("/models/test", summary="测试模型配置", **auth)
 def test_model_config(request, config_id: int):
     """测试模型配置"""
     try:

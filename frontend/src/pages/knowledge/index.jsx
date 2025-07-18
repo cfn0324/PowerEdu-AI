@@ -287,6 +287,13 @@ const KnowledgeHome = () => {
         extra={
           <Space>
             <Button 
+              type="default" 
+              icon={<SettingOutlined />}
+              onClick={() => navigate('/knowledge/test')}
+            >
+              连接测试
+            </Button>
+            <Button 
               type="primary" 
               icon={<SettingOutlined />}
               onClick={() => navigate('/knowledge/settings')}

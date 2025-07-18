@@ -31,6 +31,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { knowledgeApi } from '../../service/knowledge';
+import { useTokenStore } from '../../stores';
 
 const { Title, Paragraph } = Typography;
 const { Option } = Select;
@@ -42,8 +43,13 @@ const ModelSettings = () => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [currentConfig, setCurrentConfig] = useState(null);
   const [testLoading, setTestLoading] = useState({});
+  const [debugMode, setDebugMode] = useState(false);
   const [form] = Form.useForm();
   const navigate = useNavigate();
+  
+  // 获取用户登录状态
+  const { auth } = useTokenStore();
+  const isLoggedIn = !!auth?.token;
 
   // 模型类型选项
   const modelTypes = [
@@ -52,8 +58,10 @@ const ModelSettings = () => {
   ];
 
   useEffect(() => {
-    fetchModelConfigs();
-  }, []);
+    if (isLoggedIn) {
+      fetchModelConfigs();
+    }
+  }, [isLoggedIn]);
 
   const fetchModelConfigs = async () => {
     setLoading(true);
@@ -72,7 +80,23 @@ const ModelSettings = () => {
       setModelConfigs(Array.isArray(configs) ? configs : []);
     } catch (error) {
       console.error('获取模型配置失败:', error);
-      message.error('获取模型配置失败');
+      
+      // 更详细的错误处理
+      if (error.response?.status === 401) {
+        message.error('身份验证失败，请重新登录');
+        navigate('/login');
+      } else if (error.response?.status === 403) {
+        message.error('没有权限访问此功能');
+      } else if (error.response?.status === 404) {
+        message.error('API接口不存在，请检查后端服务');
+      } else if (error.response?.status === 500) {
+        message.error('服务器内部错误，请稍后重试');
+      } else if (error.request) {
+        message.error('无法连接到服务器，请检查网络连接');
+      } else {
+        message.error('获取模型配置失败: ' + error.message);
+      }
+      
       setModelConfigs([]); // 确保设置为空数组
     } finally {
       setLoading(false);
@@ -350,6 +374,20 @@ const ModelSettings = () => {
     </Form>
   );
 
+  if (!isLoggedIn) {
+    return (
+      <div style={{ textAlign: 'center', padding: '100px 0' }}>
+        <Title level={3}>请先登录</Title>
+        <Paragraph type="secondary">您需要登录后才能访问模型配置管理功能</Paragraph>
+        <div style={{ marginTop: 16 }}>
+          <Button type="primary" onClick={() => navigate('/login')}>
+            前往登录
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: '20px' }}>
       {/* 面包屑导航 */}
@@ -377,6 +415,39 @@ const ModelSettings = () => {
         <Paragraph type="secondary">
           配置和管理大语言模型，支持OpenAI、Claude、ChatGLM等多种模型。
         </Paragraph>
+        
+        {/* 调试信息 */}
+        <div style={{ marginTop: 16 }}>
+          <Space>
+            <Button 
+              size="small" 
+              type="dashed" 
+              onClick={() => setDebugMode(!debugMode)}
+            >
+              {debugMode ? '隐藏' : '显示'}调试信息
+            </Button>
+            <Button 
+              size="small" 
+              type="primary" 
+              onClick={() => navigate('/knowledge/test')}
+            >
+              连接测试
+            </Button>
+          </Space>
+        </div>
+        
+        {debugMode && (
+          <div style={{ marginTop: 16 }}>
+            <Card size="small" title="调试信息">
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Text>登录状态: {isLoggedIn ? '✅ 已登录' : '❌ 未登录'}</Text>
+                <Text>Token: {auth?.token ? `${auth.token.slice(0, 20)}...` : '无'}</Text>
+                <Text>配置数量: {modelConfigs.length}</Text>
+                <Text>加载状态: {loading ? '加载中' : '已完成'}</Text>
+              </Space>
+            </Card>
+          </div>
+        )}
       </div>
 
       {/* 模型配置列表 */}
