@@ -85,38 +85,6 @@ def knowledge_root(request):
     }
 
 
-@router.get("/stats", summary="获取系统统计信息")
-def get_system_stats(request):
-    """获取系统统计信息"""
-    try:
-        # 统计知识库数量
-        knowledge_bases_count = KnowledgeBase.objects.filter(is_active=True).count()
-        
-        # 统计文档数量
-        documents_count = Document.objects.count()
-        
-        # 统计会话数量
-        qa_sessions_count = QASession.objects.count()
-        
-        # 统计问答记录数量
-        qa_records_count = QARecord.objects.count()
-        
-        return {
-            "success": True,
-            "data": {
-                "stats": {
-                    "knowledge_bases": knowledge_bases_count,
-                    "documents": documents_count,
-                    "qa_sessions": qa_sessions_count,
-                    "qa_records": qa_records_count
-                }
-            }
-        }
-    except Exception as e:
-        logger.error(f"获取统计信息失败: {e}")
-        return {"success": False, "error": str(e)}
-
-
 # ==================== 知识库管理 ====================
 
 @router.get("/knowledge-bases", summary="获取知识库列表")
@@ -587,10 +555,12 @@ def ask_question(request, data: QARequestSchema):
         # 调用RAG系统进行问答
         rag_system = get_rag_system()
         
-        # 配置LLM（如果指定了配置ID）
-        if data.model_config_id:
+        # 配置LLM - 优先使用指定的配置，否则使用默认的Gemini配置
+        config_id_to_use = data.model_config_id
+        
+        if config_id_to_use:
             try:
-                model_config = ModelConfig.objects.get(id=data.model_config_id, is_active=True)
+                model_config = ModelConfig.objects.get(id=config_id_to_use, is_active=True)
                 llm_config = {
                     'model_type': model_config.model_type,
                     'model_name': model_config.model_name,
@@ -599,35 +569,82 @@ def ask_question(request, data: QARequestSchema):
                     'max_tokens': model_config.max_tokens,
                     'temperature': model_config.temperature
                 }
-                rag_system.configure_llm(data.model_config_id, llm_config)
+                rag_system.configure_llm(config_id_to_use, llm_config)
             except ModelConfig.DoesNotExist:
-                pass
+                config_id_to_use = None
+        
+        # 如果没有指定配置ID或指定的配置不存在，使用默认的Gemini配置
+        if not config_id_to_use:
+            try:
+                # 查找激活的Gemini配置
+                gemini_config = ModelConfig.objects.filter(
+                    model_name__icontains='gemini',
+                    is_active=True
+                ).first()
+                
+                if gemini_config:
+                    config_id_to_use = gemini_config.id
+                    llm_config = {
+                        'model_type': gemini_config.model_type,
+                        'model_name': gemini_config.model_name,
+                        'api_key': gemini_config.api_key,
+                        'api_base_url': gemini_config.api_base_url,
+                        'max_tokens': gemini_config.max_tokens,
+                        'temperature': gemini_config.temperature
+                    }
+                    rag_system.configure_llm(config_id_to_use, llm_config)
+                    logger.info(f"使用默认Gemini配置: {gemini_config.model_name}")
+                else:
+                    logger.warning("未找到激活的Gemini配置")
+            except Exception as e:
+                logger.warning(f"无法配置默认Gemini配置: {e}")
+        
+        # 添加调试日志
+        logger.info(f"最终使用的配置ID: {config_id_to_use}")
+        logger.info(f"RAG系统中的LLM配置: {list(rag_system.llm_configs.keys())}")
         
         # 执行问答
         async def run_qa():
             return await rag_system.ask_question(
                 kb_id=data.kb_id,
                 question=data.question,
-                config_id=data.model_config_id,
+                config_id=config_id_to_use,
                 top_k=data.top_k or 5,
                 threshold=data.threshold or 0.5
             )
         
         # 在同步环境中运行异步函数
         try:
+            # 尝试获取当前事件循环
             loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # 如果事件循环正在运行，使用asyncio.run_coroutine_threadsafe
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, run_qa())
+                    result = future.result()
+            else:
+                # 如果事件循环没有运行，直接运行
+                result = loop.run_until_complete(run_qa())
         except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            # 如果没有事件循环，创建新的
+            result = asyncio.run(run_qa())
         
-        result = loop.run_until_complete(run_qa())
+        # 验证返回的结果包含所有必要字段
+        required_fields = ['answer', 'sources', 'model_used', 'response_time']
+        missing_fields = [field for field in required_fields if field not in result]
+        
+        if missing_fields:
+            logger.error(f"RAG系统返回的结果缺少字段: {missing_fields}")
+            logger.error(f"实际返回的结果: {result}")
+            return {"success": False, "error": f"系统内部错误: 缺少必要字段 {missing_fields}"}
         
         # 保存问答记录
         qa_record = QARecord.objects.create(
             session=session,
             question=data.question,
             answer=result['answer'],
-            retrieved_chunks=result['retrieved_chunks'],
+            retrieved_chunks=result.get('retrieved_chunks', []),
             model_used=result['model_used'],
             response_time=result['response_time'],
             tokens_used=result.get('tokens_used', 0)
@@ -951,18 +968,51 @@ def health_check(request):
         db_status = "ok"
         try:
             KnowledgeBase.objects.first()
-        except Exception:
-            db_status = "error"
+        except Exception as e:
+            db_status = f"error: {str(e)}"
         
         # 检查模型配置
         active_models = ModelConfig.objects.filter(is_active=True).count()
         
+        # 测试问答系统基本功能
+        qa_test_status = "ok"
+        try:
+            import asyncio
+            async def test_qa():
+                return await rag_system.ask_question(
+                    kb_id=1,
+                    question="健康检查测试",
+                    config_id=None,
+                    top_k=1,
+                    threshold=0.5
+                )
+            
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            test_result = loop.run_until_complete(test_qa())
+            loop.close()
+            
+            # 检查返回结果是否包含必要字段
+            required_fields = ['answer', 'sources', 'model_used', 'response_time']
+            missing_fields = [field for field in required_fields if field not in test_result]
+            
+            if missing_fields:
+                qa_test_status = f"error: 缺少字段 {missing_fields}"
+            
+        except Exception as e:
+            qa_test_status = f"error: {str(e)}"
+        
         return {
             "success": True,
             "data": {
-                "status": "healthy",
+                "status": "healthy" if all([
+                    db_status == "ok",
+                    qa_test_status == "ok",
+                    active_models > 0
+                ]) else "unhealthy",
                 "database": db_status,
                 "rag_system": "initialized" if rag_system else "not_initialized",
+                "qa_system": qa_test_status,
                 "active_models": active_models,
                 "timestamp": datetime.now().isoformat()
             }

@@ -158,13 +158,26 @@ const KnowledgeChat = () => {
         
         setChatHistory(prev => [...prev, aiMessage]);
       } else {
-        message.error(response.data?.error || '问答失败');
+        const errorMsg = response.data?.error || '问答失败';
+        console.error('问答失败:', errorMsg);
+        
+        // 提供更详细的错误信息
+        let userFriendlyError = '抱歉，我现在无法回答您的问题，请稍后再试。';
+        if (errorMsg.includes('model_used')) {
+          userFriendlyError = '系统配置错误，请联系管理员检查模型配置。';
+        } else if (errorMsg.includes('知识库')) {
+          userFriendlyError = '知识库访问失败，请检查知识库是否存在。';
+        } else if (errorMsg.includes('权限')) {
+          userFriendlyError = '没有访问权限，请重新登录。';
+        }
+        
+        message.error(userFriendlyError);
         
         // 添加错误消息
         const errorMessage = {
           id: Date.now() + 1,
           type: 'error',
-          content: response.data?.error || '抱歉，我现在无法回答您的问题，请稍后再试。',
+          content: userFriendlyError,
           timestamp: new Date()
         };
         
