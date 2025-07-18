@@ -146,13 +146,21 @@ class LoadPredictor:
         """
         # 处理目标日期
         if isinstance(target_date, str):
-            target_date = pd.to_datetime(target_date).date()
+            try:
+                # 确保日期字符串格式正确
+                target_date = pd.to_datetime(target_date, format='%Y-%m-%d').date()
+            except Exception as e:
+                raise ValueError(f"日期格式错误: {target_date}，应为YYYY-MM-DD格式")
         elif isinstance(target_date, datetime):
             target_date = target_date.date()
+        
+        print(f"🗓️  预测目标日期: {target_date}")
         
         # 生成24小时96个时间点
         start_time = datetime.combine(target_date, datetime.min.time())
         time_points = pd.date_range(start=start_time, periods=96, freq='15T')
+        
+        print(f"⏰ 生成时间点: {len(time_points)}个，从 {time_points[0]} 到 {time_points[-1]}")
         
         # 构建预测数据
         prediction_data = []

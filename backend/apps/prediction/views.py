@@ -18,10 +18,68 @@ from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 
+# 导入认证模块
+from apps.core import auth
+
 # 添加AI预测模块路径
 current_dir = os.path.dirname(os.path.abspath(__file__))
 ai_prediction_path = os.path.join(current_dir, '../../ai_prediction')
 sys.path.insert(0, ai_prediction_path)
+
+def serialize_for_json(obj):
+    """
+    递归地将对象转换为JSON可序列化的格式
+    """
+    if isinstance(obj, dict):
+        return {key: serialize_for_json(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [serialize_for_json(item) for item in obj]
+    elif isinstance(obj, (pd.Timestamp, pd.Timedelta)):
+        return obj.isoformat()
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif hasattr(obj, 'isoformat'):  # 其他日期时间对象
+        return obj.isoformat()
+    elif hasattr(obj, 'item'):  # numpy标量
+        return obj.item()
+    else:
+        return obj
+
+def get_authenticated_user(request):
+    """从JWT token获取认证用户"""
+    auth_header = request.headers.get('Authorization', '')
+    print(f"🔐 认证头: {auth_header[:50]}..." if auth_header else "🔐 无认证头")
+    
+    if auth_header and auth_header.startswith('Bearer '):
+        token = auth_header.split(' ')[1]
+        print(f"🔐 提取到token: {token[:30]}...")
+        
+        try:
+            from apps.core import token_util
+            from apps.user.models import User
+            
+            print(f"🔐 开始解析token...")
+            user_id = token_util.parse(token)
+            print(f"🔐 token解析成功，用户ID: {user_id}")
+            
+            user = User.objects.get(id=user_id)
+            print(f"🔐 用户查询成功: {user.username} (ID: {user.id})")
+            return user
+        except User.DoesNotExist:
+            print(f"🔐 用户不存在，ID: {user_id}")
+            return None
+        except Exception as e:
+            print(f"� JWT认证失败: {str(e)}")
+            return None
+    else:
+        print("🔐 无有效的Bearer token")
+        return None
 
 # 全局变量存储初始化的组件
 _data_generator = None
@@ -362,18 +420,33 @@ def predict_single(request):
         # 生成可视化
         visualization = _visualizer.plot_single_prediction(result)
         
-        # 保存预测历史
-        if request.user.is_authenticated:
-            PredictionHistory.objects.create(
-                user=request.user,
-                model=PredictionModel.objects.get_or_create(
+        # 保存预测历史 - 使用JWT认证
+        user = get_authenticated_user(request)
+        if user:
+            try:
+                print(f"💾 保存单点预测历史记录，用户: {user.username}")
+                
+                # 序列化输入数据和预测结果
+                serialized_input = serialize_for_json(data)
+                serialized_result = serialize_for_json(result)
+                
+                model_obj, created = PredictionModel.objects.get_or_create(
                     name=result['model_used'],
                     defaults={'model_type': 'ml', 'description': '机器学习模型'}
-                )[0],
-                input_data=data,
-                prediction_result=result,
-                prediction_type='single'
-            )
+                )
+                
+                history_record = PredictionHistory.objects.create(
+                    user=user,
+                    model=model_obj,
+                    input_data=serialized_input,
+                    prediction_result=serialized_result,
+                    prediction_type='single'
+                )
+                print(f"💾 单点预测历史记录保存成功，ID: {history_record.id}")
+            except Exception as e:
+                print(f"❌ 保存单点预测历史记录失败: {str(e)}")
+        else:
+            print("💾 用户未认证，跳过单点预测历史记录保存")
         
         return {
             "success": True,
@@ -407,18 +480,33 @@ def predict_batch(request):
         # 生成可视化
         visualization = _visualizer.plot_batch_predictions(results)
         
-        # 保存预测历史
-        if request.user.is_authenticated:
-            PredictionHistory.objects.create(
-                user=request.user,
-                model=PredictionModel.objects.get_or_create(
+        # 保存预测历史 - 使用JWT认证
+        user = get_authenticated_user(request)
+        if user:
+            try:
+                print(f"💾 保存批量预测历史记录，用户: {user.username}")
+                
+                # 序列化输入数据和预测结果
+                serialized_input = serialize_for_json(data)
+                serialized_results = serialize_for_json({"results": results})
+                
+                model_obj, created = PredictionModel.objects.get_or_create(
                     name=results[0]['model_used'],
                     defaults={'model_type': 'ml', 'description': '机器学习模型'}
-                )[0],
-                input_data=data,
-                prediction_result={"results": results},
-                prediction_type='batch'
-            )
+                )
+                
+                history_record = PredictionHistory.objects.create(
+                    user=user,
+                    model=model_obj,
+                    input_data=serialized_input,
+                    prediction_result=serialized_results,
+                    prediction_type='batch'
+                )
+                print(f"💾 批量预测历史记录保存成功，ID: {history_record.id}")
+            except Exception as e:
+                print(f"❌ 保存批量预测历史记录失败: {str(e)}")
+        else:
+            print("💾 用户未认证，跳过批量预测历史记录保存")
         
         return {
             "success": True,
@@ -447,9 +535,25 @@ def predict_day_ahead(request):
         if 'target_date' not in data:
             return {"success": False, "error": "缺少参数: target_date"}
         
+        target_date_str = data['target_date']
+        
+        # 验证日期格式和有效性
+        try:
+            from datetime import datetime
+            target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
+            
+            # 检查日期是否为未来日期
+            if target_date <= datetime.now().date():
+                return {"success": False, "error": "只能预测未来的日期"}
+                
+        except ValueError as e:
+            return {"success": False, "error": f"日期格式错误，请使用YYYY-MM-DD格式: {str(e)}"}
+        
+        print(f"🗓️  开始日前预测，目标日期: {target_date_str}")
+        
         # 执行日前预测
         result = _predictor.predict_day_ahead(
-            target_date=data['target_date'],
+            target_date=target_date_str,
             weather_forecast=data.get('weather_forecast'),
             model_name=data.get('model_name')
         )
@@ -457,18 +561,37 @@ def predict_day_ahead(request):
         # 生成可视化
         visualization = _visualizer.plot_day_ahead_prediction(result)
         
-        # 保存预测历史
-        if request.user.is_authenticated:
-            PredictionHistory.objects.create(
-                user=request.user,
-                model=PredictionModel.objects.get_or_create(
+        # 保存预测历史 - 使用JWT认证
+        user = get_authenticated_user(request)
+        
+        if user:
+            try:
+                print(f"💾 保存日前预测历史记录，用户: {user.username}")
+                
+                # 序列化输入数据和预测结果
+                serialized_input = serialize_for_json(data)
+                serialized_result = serialize_for_json(result)
+                
+                model_obj, created = PredictionModel.objects.get_or_create(
                     name=result['model_used'],
                     defaults={'model_type': 'ml', 'description': '机器学习模型'}
-                )[0],
-                input_data=data,
-                prediction_result=result,
-                prediction_type='day_ahead'
-            )
+                )
+                if created:
+                    print(f"💾 创建新模型记录: {model_obj.name}")
+                
+                history_record = PredictionHistory.objects.create(
+                    user=user,
+                    model=model_obj,
+                    input_data=serialized_input,
+                    prediction_result=serialized_result,
+                    prediction_type='day_ahead'
+                )
+                print(f"💾 历史记录保存成功，ID: {history_record.id}")
+            except Exception as e:
+                print(f"❌ 保存历史记录失败: {str(e)}")
+                # 不影响预测结果的返回
+        else:
+            print("💾 用户未认证，跳过历史记录保存")
         
         return {
             "success": True,
@@ -548,15 +671,24 @@ def analyze_prediction_error(request):
 def get_prediction_history(request):
     """获取用户预测历史"""
     try:
-        # 如果用户已登录，返回用户的历史记录；否则返回空列表
-        if request.user.is_authenticated:
-            histories = PredictionHistory.objects.filter(user=request.user).order_by('-created_at')[:50]
+        print(f"🔍 收到历史记录请求")
+        
+        # 使用JWT认证获取用户
+        user = get_authenticated_user(request)
+        
+        if user:
+            print(f"🔍 JWT认证成功，用户: {user.username} (ID: {user.id})")
+            histories = PredictionHistory.objects.filter(user=user).order_by('-created_at')[:50]
+            print(f"🔍 查询到 {len(histories)} 条历史记录")
         else:
             # 未登录用户返回空历史记录
+            print("🔍 用户未认证，返回空历史记录")
             return {"success": True, "data": []}
         
         history_data = []
         for history in histories:
+            print(f"🔍 处理历史记录 ID: {history.id}, 类型: {history.prediction_type}")
+            
             # 根据预测类型处理不同的数据结构
             input_summary = {
                 'timestamp': history.input_data.get('timestamp', 'N/A'),
@@ -597,6 +729,7 @@ def get_prediction_history(request):
                 'prediction_summary': prediction_summary
             })
         
+        print(f"🔍 返回 {len(history_data)} 条处理后的历史记录")
         return {"success": True, "data": history_data}
         
     except Exception as e:

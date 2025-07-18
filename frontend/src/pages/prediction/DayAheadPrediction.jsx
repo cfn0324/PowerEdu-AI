@@ -38,7 +38,10 @@ const { TabPane } = Tabs;
 const DayAheadPrediction = () => {
   const [predicting, setPredicting] = useState(false);
   const [selectedModel, setSelectedModel] = useState(null);
-  const [targetDate, setTargetDate] = useState(moment().add(1, 'day'));
+  const [targetDate, setTargetDate] = useState(() => {
+    // 确保初始值是明天的日期
+    return moment().add(1, 'day').startOf('day');
+  });
   const [results, setResults] = useState(null);
   
   // 获取用户登录状态
@@ -60,11 +63,27 @@ const DayAheadPrediction = () => {
     try {
       setPredicting(true);
       
+      // 验证日期
+      if (!targetDate || !targetDate.isValid()) {
+        message.error('请选择有效的预测日期');
+        return;
+      }
+      
+      // 确保日期不是今天或过去的日期
+      const today = moment().startOf('day');
+      if (targetDate.isSameOrBefore(today)) {
+        message.error('只能预测明天及以后的日期');
+        return;
+      }
+      
       const predictData = {
         target_date: targetDate.format('YYYY-MM-DD'),
         model_name: selectedModel
       };
 
+      console.log('发送预测请求:', predictData);
+      console.log('目标日期对象:', targetDate.toISOString());
+      
       const response = await predictionApi.predictDayAhead(predictData);
       
       if (response.data && response.data.success) {
@@ -122,13 +141,65 @@ const DayAheadPrediction = () => {
   };
 
   const generateQuickPredict = async (days) => {
-    const quickDate = moment().add(days, 'day');
+    if (predicting) {
+      message.warning('正在预测中，请稍候...');
+      return;
+    }
+    
+    // 从今天开始计算，确保日期正确
+    const today = moment().startOf('day');
+    const quickDate = today.clone().add(days, 'day');
+    
+    // 验证生成的日期
+    if (!quickDate.isValid()) {
+      message.error('生成的日期无效');
+      return;
+    }
+    
+    console.log(`快速选择: 今天+${days}天 = ${quickDate.format('YYYY-MM-DD')}`);
+    
+    // 更新状态
     setTargetDate(quickDate);
     
-    // 延迟一下让日期选择器更新
-    setTimeout(() => {
-      handlePredict();
-    }, 100);
+    // 等待状态更新
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    // 直接调用预测
+    try {
+      setPredicting(true);
+      
+      const predictData = {
+        target_date: quickDate.format('YYYY-MM-DD'),
+        model_name: selectedModel
+      };
+
+      console.log('快速预测请求:', predictData);
+      const response = await predictionApi.predictDayAhead(predictData);
+      
+      if (response.data && response.data.success) {
+        const resultData = response.data.data;
+        
+        if (!resultData.prediction || !resultData.prediction.predictions || !Array.isArray(resultData.prediction.predictions)) {
+          message.error('预测数据格式错误');
+          return;
+        }
+        
+        setResults(resultData);
+        const pointCount = resultData.prediction.predictions.length;
+        if (isLoggedIn) {
+          message.success(`快速预测完成！共生成${pointCount}个时间点的预测结果，历史记录已保存`);
+        } else {
+          message.success(`快速预测完成！共生成${pointCount}个时间点的预测结果，登录后可保存历史记录`);
+        }
+      } else {
+        message.error(response.data?.error || '快速预测失败');
+      }
+    } catch (error) {
+      console.error('快速预测错误:', error);
+      message.error('快速预测请求失败，请稍后重试');
+    } finally {
+      setPredicting(false);
+    }
   };
 
   return (
@@ -190,14 +261,35 @@ const DayAheadPrediction = () => {
               <Text strong>预测日期：</Text>
               <DatePicker
                 value={targetDate}
-                onChange={setTargetDate}
-                style={{ width: '100%', marginTop: 8 }}
-                placeholder="选择预测日期"
-                disabledDate={(current) => {
-                  // 不能选择过去的日期
-                  return current && current < moment().startOf('day');
+                onChange={(date) => {
+                  console.log('原始日期对象:', date);
+                  if (date) {
+                    const formattedDate = date.format('YYYY-MM-DD');
+                    console.log('格式化日期:', formattedDate);
+                    setTargetDate(date);
+                  } else {
+                    console.log('日期被清空');
+                    setTargetDate(null);
+                  }
                 }}
+                style={{ width: '100%', marginTop: 8 }}
+                placeholder="请选择预测日期"
+                format="YYYY-MM-DD"
+                allowClear={true}
+                disabledDate={(current) => {
+                  if (!current) return false;
+                  // 禁用今天及之前的日期
+                  const today = moment().startOf('day');
+                  return current.isSameOrBefore(today);
+                }}
+                showToday={false}
+                getPopupContainer={(trigger) => trigger.parentElement}
               />
+              {targetDate && targetDate.isValid() && (
+                <div style={{ marginTop: 4, color: '#666', fontSize: '12px' }}>
+                  已选择: {targetDate.format('YYYY-MM-DD')} (星期{['日','一','二','三','四','五','六'][targetDate.day()]})
+                </div>
+              )}
             </div>
 
             <div style={{ marginBottom: 16 }}>

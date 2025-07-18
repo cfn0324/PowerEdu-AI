@@ -45,14 +45,31 @@ const PredictionHistory = () => {
   const loadHistory = async () => {
     try {
       setLoading(true);
+      console.log('🔍 开始加载预测历史...');
+      console.log('🔍 当前登录状态:', isLoggedIn);
+      console.log('🔍 Token:', auth?.token ? '存在' : '不存在');
+      
       const response = await predictionApi.getPredictionHistory();
+      console.log('🔍 历史记录API响应:', response);
       
       if (response.data && response.data.success) {
-        setHistory(response.data.data || []);
+        const historyData = response.data.data || [];
+        console.log('🔍 获取到历史记录数量:', historyData.length);
+        setHistory(historyData);
+        
+        if (historyData.length > 0) {
+          message.success(`成功加载 ${historyData.length} 条预测历史记录`);
+        }
       } else {
+        console.error('🔍 历史记录加载失败:', response.data);
         message.error('预测历史加载失败: ' + (response.data?.error || '未知错误'));
       }
     } catch (error) {
+      console.error('🔍 历史记录请求异常:', error);
+      if (error.response) {
+        console.error('🔍 错误响应状态:', error.response.status);
+        console.error('🔍 错误响应数据:', error.response.data);
+      }
       message.error('加载预测历史失败: ' + error.message);
     } finally {
       setLoading(false);

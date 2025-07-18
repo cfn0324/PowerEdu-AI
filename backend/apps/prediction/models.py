@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import User
+from apps.user.models import User  # 使用自定义User模型
 
 
 class PredictionModel(models.Model):
