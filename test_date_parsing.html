@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>测试日期解析</title>
+</head>
+<body>
+    <h1>测试日期解析</h1>
+    <div id="results"></div>
+    
+    <script>
+        // 测试日期解析
+        const testDate = "2025-07-18T06:15:42.645463+00:00";
+        
+        const results = document.getElementById('results');
+        
+        // 测试原始日期字符串
+        results.innerHTML += `<p>原始日期字符串: ${testDate}</p>`;
+        
+        // 测试创建Date对象
+        const date = new Date(testDate);
+        results.innerHTML += `<p>Date对象: ${date}</p>`;
+        
+        // 测试是否为有效日期
+        results.innerHTML += `<p>是否为有效日期: ${!isNaN(date.getTime())}</p>`;
+        
+        // 测试toLocaleDateString()
+        results.innerHTML += `<p>toLocaleDateString(): ${date.toLocaleDateString()}</p>`;
+        
+        // 测试toLocaleString()
+        results.innerHTML += `<p>toLocaleString(): ${date.toLocaleString()}</p>`;
+        
+        // 测试空值或undefined
+        const emptyDate = new Date(undefined);
+        results.innerHTML += `<p>空值日期: ${emptyDate}</p>`;
+        results.innerHTML += `<p>空值日期 toLocaleDateString(): ${emptyDate.toLocaleDateString()}</p>`;
+        
+        // 测试null
+        const nullDate = new Date(null);
+        results.innerHTML += `<p>null日期: ${nullDate}</p>`;
+        results.innerHTML += `<p>null日期 toLocaleDateString(): ${nullDate.toLocaleDateString()}</p>`;
+    </script>
+</body>
+</html>

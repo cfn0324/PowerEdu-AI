@@ -192,7 +192,7 @@ const KnowledgeDetail = () => {
                       <FileTextOutlined />
                       <span>{doc.file_name || `文档${doc.id}`}</span>
                       <Tag size="small">
-                        {new Date(doc.created_at).toLocaleDateString()}
+                        {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : '未知日期'}
                       </Tag>
                     </Space>
                   </div>
