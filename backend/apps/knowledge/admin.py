@@ -51,8 +51,8 @@ class QARecordAdmin(admin.ModelAdmin):
 
 @admin.register(ModelConfig)
 class ModelConfigAdmin(admin.ModelAdmin):
-    list_display = ['name', 'provider', 'model_type', 'is_active', 'is_default']
-    list_filter = ['model_type', 'provider', 'is_active', 'is_default']
+    list_display = ['name', 'model_name', 'model_type', 'is_active', 'is_default']
+    list_filter = ['model_type', 'is_active', 'is_default']
     search_fields = ['name', 'model_name']
     readonly_fields = ['created_at']
 

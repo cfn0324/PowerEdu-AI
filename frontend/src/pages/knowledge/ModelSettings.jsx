@@ -47,22 +47,8 @@ const ModelSettings = () => {
 
   // 模型类型选项
   const modelTypes = [
-    { value: 'openai', label: 'OpenAI' },
-    { value: 'claude', label: 'Anthropic Claude' },
-    { value: 'gemini', label: 'Google Gemini' },
-    { value: 'chatglm', label: '智谱AI ChatGLM' },
-    { value: 'qwen', label: '通义千问' },
-    { value: 'local', label: '本地模型' }
-  ];
-
-  // 提供商选项
-  const providers = [
-    { value: 'openai', label: 'OpenAI' },
-    { value: 'anthropic', label: 'Anthropic' },
-    { value: 'google', label: 'Google' },
-    { value: 'zhipu', label: '智谱AI' },
-    { value: 'alibaba', label: '阿里云' },
-    { value: 'local', label: '本地部署' }
+    { value: 'api', label: 'API模式' },
+    { value: 'local', label: '本地模式' }
   ];
 
   useEffect(() => {
@@ -298,21 +284,6 @@ const ModelSettings = () => {
       <Row gutter={16}>
         <Col span={12}>
           <Form.Item
-            name="provider"
-            label="提供商"
-            rules={[{ required: true, message: '请选择提供商' }]}
-          >
-            <Select placeholder="请选择提供商">
-              {providers.map(provider => (
-                <Option key={provider.value} value={provider.value}>
-                  {provider.label}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item
             name="model_name"
             label="模型名称"
             rules={[{ required: true, message: '请输入模型名称' }]}
@@ -320,27 +291,30 @@ const ModelSettings = () => {
             <Input placeholder="如：gpt-3.5-turbo" />
           </Form.Item>
         </Col>
+        <Col span={12}>
+          <Form.Item
+            name="model_path"
+            label="本地模型路径"
+          >
+            <Input placeholder="本地模型文件路径（可选）" />
+          </Form.Item>
+        </Col>
       </Row>
 
       <Form.Item
         name="api_key"
         label="API密钥"
+        rules={[{ required: true, message: '请输入API密钥' }]}
       >
-        <Input.Password placeholder="请输入API密钥（可选）" />
+        <Input.Password placeholder="请输入API密钥" />
       </Form.Item>
 
       <Form.Item
         name="api_base_url"
         label="API基础URL"
+        rules={[{ required: true, message: '请输入API基础URL' }]}
       >
-        <Input placeholder="请输入API基础URL（可选）" />
-      </Form.Item>
-
-      <Form.Item
-        name="model_path"
-        label="本地模型路径"
-      >
-        <Input placeholder="本地模型文件路径（可选）" />
+        <Input placeholder="请输入API基础URL" />
       </Form.Item>
 
       <Row gutter={16}>

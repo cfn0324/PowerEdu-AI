@@ -296,11 +296,11 @@ class LLMInterface:
     def __init__(self, model_config: Dict):
         self.model_config = model_config
         self.model_type = model_config.get('model_type', 'mock')
-        self.provider = model_config.get('provider', 'mock')
+        self.model_name = model_config.get('model_name', 'mock')
     
     async def generate(self, prompt: str, context: str = "") -> str:
         """生成回答"""
-        if self.model_type == 'mock' or self.provider == 'mock':
+        if self.model_type == 'mock' or self.model_name == 'mock':
             return f"基于提供的上下文信息：{context[:100]}...\n\n对于问题「{prompt}」，这是一个模拟回答。请配置真实的大语言模型以获得准确回答。"
         
         # 模拟其他模型的简单回应
@@ -326,7 +326,7 @@ class LLMInterface:
             return {
                 'answer': answer,
                 'response_time': response_time,
-                'model_used': f"{self.provider}:{self.model_config.get('model_name', 'unknown')}",
+                'model_used': f"{self.model_name}",
                 'success': True
             }
         except Exception as e:
@@ -334,7 +334,7 @@ class LLMInterface:
             return {
                 'answer': f"生成回答时出错: {str(e)}",
                 'response_time': response_time,
-                'model_used': f"{self.provider}:{self.model_config.get('model_name', 'unknown')}",
+                'model_used': f"{self.model_name}",
                 'success': False,
                 'error': str(e)
             }

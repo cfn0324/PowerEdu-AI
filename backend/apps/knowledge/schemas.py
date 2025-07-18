@@ -75,17 +75,16 @@ class FeedbackSchema(Schema):
 class ModelConfigSchema(ModelSchema):
     class Meta:
         model = ModelConfig
-        fields = ['id', 'name', 'model_type', 'provider', 'model_name', 'is_active', 'is_default']
+        fields = ['id', 'name', 'model_type', 'model_name', 'is_active', 'is_default']
 
 
 class ModelConfigCreateSchema(Schema):
     name: str = Field(..., description="配置名称")
     description: str = Field("", description="配置描述")
     model_type: str = Field(..., description="模型类型")
-    provider: str = Field(..., description="模型提供商")
     model_name: str = Field(..., description="模型名称")
-    api_key: str = Field("", description="API密钥")
-    api_base_url: str = Field("", description="API基础URL")
+    api_key: str = Field(..., description="API密钥")
+    api_base_url: str = Field(..., description="API基础URL")
     model_path: str = Field("", description="本地模型路径")
     max_tokens: int = Field(4096, description="最大Token数")
     temperature: float = Field(0.7, description="温度参数")

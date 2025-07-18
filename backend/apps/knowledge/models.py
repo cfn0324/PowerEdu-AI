@@ -123,24 +123,12 @@ class ModelConfig(models.Model):
         ('local', '本地模式'),
     ]
     
-    PROVIDERS = [
-        ('openai', 'OpenAI'),
-        ('anthropic', 'Anthropic'),
-        ('google', 'Google Gemini'),
-        ('zhipu', '智谱AI'),
-        ('qwen', '通义千问'),
-        ('local_llama', 'Local Llama'),
-        ('local_chatglm', 'Local ChatGLM'),
-        ('local_qwen', 'Local Qwen'),
-    ]
-    
     name = models.CharField(max_length=100, verbose_name="配置名称")
     description = models.TextField(blank=True, verbose_name="配置描述")
     model_type = models.CharField(max_length=10, choices=MODEL_TYPES, verbose_name="模型类型")
-    provider = models.CharField(max_length=20, choices=PROVIDERS, verbose_name="模型提供商")
     model_name = models.CharField(max_length=100, verbose_name="模型名称")
-    api_key = models.CharField(max_length=500, blank=True, verbose_name="API密钥")
-    api_base_url = models.URLField(blank=True, verbose_name="API基础URL")
+    api_key = models.CharField(max_length=500, verbose_name="API密钥")
+    api_base_url = models.URLField(verbose_name="API基础URL")
     model_path = models.CharField(max_length=1000, blank=True, verbose_name="本地模型路径")
     max_tokens = models.IntegerField(default=4096, verbose_name="最大Token数")
     temperature = models.FloatField(default=0.7, verbose_name="温度参数")
@@ -153,7 +141,7 @@ class ModelConfig(models.Model):
         verbose_name_plural = "模型配置"
         
     def __str__(self):
-        return f"{self.name} ({self.provider})"
+        return f"{self.name} ({self.model_name})"
 
 
 class EmbeddingConfig(models.Model):

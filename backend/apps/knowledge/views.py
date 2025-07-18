@@ -542,7 +542,6 @@ def ask_question(request, data: QARequestSchema):
                 model_config = ModelConfig.objects.get(id=data.model_config_id, is_active=True)
                 llm_config = {
                     'model_type': model_config.model_type,
-                    'provider': model_config.provider,
                     'model_name': model_config.model_name,
                     'api_key': model_config.api_key,
                     'api_base_url': model_config.api_base_url,
@@ -816,7 +815,6 @@ def test_model_config(request, config_id: int):
         # 配置LLM
         llm_config = {
             'model_type': config.model_type,
-            'provider': config.provider,
             'model_name': config.model_name,
             'api_key': config.api_key,
             'api_base_url': config.api_base_url,
