@@ -8,6 +8,7 @@ import PredictionDashboard from "../pages/prediction/PredictionDashboard";
 import KnowledgeHome from "../pages/knowledge";
 import KnowledgeChat from "../pages/knowledge/Chat";
 import DocumentManage from "../pages/knowledge/DocumentManage";
+import DocumentDetail from "../pages/knowledge/DocumentDetail";
 import KnowledgeDetail from "../pages/knowledge/KnowledgeDetail";
 import ModelSettings from "../pages/knowledge/ModelSettings";
 import ConnectionTest from "../pages/knowledge/ConnectionTest";
@@ -61,6 +62,10 @@ const router = createBrowserRouter([
       {
         path: "knowledge/documents/:kbId",
         element: <DocumentManage/>
+      },
+      {
+        path: "knowledge/document/:docId",
+        element: <DocumentDetail/>
       },
       {
         path: "knowledge/chat/:kbId",

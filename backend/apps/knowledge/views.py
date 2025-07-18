@@ -250,6 +250,44 @@ def get_documents(request, kb_id: int, page: int = 1, size: int = 10):
         return {"success": False, "error": str(e)}
 
 
+@router.get("/documents/{doc_id}", summary="获取文档详情")
+def get_document_detail(request, doc_id: int):
+    """获取文档详情"""
+    try:
+        document = Document.objects.get(id=doc_id)
+        
+        # 序列化文档对象
+        doc_data = {
+            "id": document.id,
+            "title": document.title,
+            "file_name": document.file_name,
+            "file_path": document.file_path,
+            "file_type": document.file_type,
+            "file_size": document.file_size,
+            "status": document.status,
+            "chunk_count": document.chunk_count,
+            "metadata": document.metadata,
+            "uploaded_by": document.uploaded_by.username if document.uploaded_by else None,
+            "uploaded_at": document.uploaded_at.isoformat() if document.uploaded_at else None,
+            "processed_at": document.processed_at.isoformat() if document.processed_at else None,
+            "knowledge_base": {
+                "id": document.knowledge_base.id,
+                "name": document.knowledge_base.name,
+                "description": document.knowledge_base.description,
+            }
+        }
+        
+        return {
+            "success": True,
+            "data": doc_data
+        }
+        
+    except Document.DoesNotExist:
+        return {"success": False, "error": "文档不存在"}
+    except Exception as e:
+        logger.error(f"获取文档详情失败: {e}")
+        return {"success": False, "error": str(e)}
+
 @router.delete("/documents/{doc_id}", summary="删除文档", **auth)
 def delete_document(request, doc_id: int):
     """删除文档"""

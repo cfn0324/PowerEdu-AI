@@ -19,6 +19,7 @@ export const knowledgeApi = {
   getDocuments: (kbId, params = {}) => api.get(`${API_BASE}/documents`, { 
     params: { kb_id: kbId, ...params } 
   }),
+  getDocument: (documentId) => api.get(`${API_BASE}/documents/${documentId}`),
   uploadDocument: (kbId, formData) => api.post(`${API_BASE}/documents/upload`, formData, {
     params: { kb_id: kbId },
     headers: {

@@ -128,6 +128,10 @@ const DocumentManage = () => {
     }
   };
 
+  const handleViewDetail = (docId) => {
+    navigate(`/knowledge/document/${docId}`);
+  };
+
   const handleDeleteDocument = async (docId) => {
     try {
       const response = await knowledgeApi.deleteDocument(docId);
@@ -248,7 +252,12 @@ const DocumentManage = () => {
       render: (_, record) => (
         <Space>
           <Tooltip title="查看详情">
-            <Button type="text" icon={<EyeOutlined />} size="small" />
+            <Button 
+              type="text" 
+              icon={<EyeOutlined />} 
+              size="small"
+              onClick={() => handleViewDetail(record.id)}
+            />
           </Tooltip>
           <Tooltip title="下载文件">
             <Button type="text" icon={<DownloadOutlined />} size="small" />
