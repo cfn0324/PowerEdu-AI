@@ -157,9 +157,10 @@ const DocumentManage = () => {
         return false;
       }
       
-      // 检查文件大小 (限制为100MB)
-      if (file.size > 100 * 1024 * 1024) {
-        message.error('文件大小不能超过100MB');
+      // 检查文件大小 (限制为500MB)
+      const maxSize = 500 * 1024 * 1024; // 500MB
+      if (file.size > maxSize) {
+        message.error(`文件大小不能超过500MB，当前文件大小: ${(file.size / (1024 * 1024)).toFixed(1)}MB`);
         return false;
       }
       
@@ -392,7 +393,7 @@ const DocumentManage = () => {
       >
         <div style={{ marginBottom: 16 }}>
           <Text type="secondary">
-            支持格式：MD、PDF、TXT、DOCX、HTML，单个文件不超过100MB
+            支持格式：MD、PDF、TXT、DOCX、HTML，单个文件不超过500MB
           </Text>
         </div>
         

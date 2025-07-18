@@ -319,6 +319,11 @@ def upload_document(request, kb_id: int, file: UploadedFile = File(...)):
         kb = KnowledgeBase.objects.get(id=kb_id, is_active=True)
         user = get_user_from_request(request)
         
+        # 检查文件大小 (限制为500MB)
+        max_file_size = 500 * 1024 * 1024  # 500MB
+        if file.size > max_file_size:
+            return {"success": False, "error": f"文件大小超过限制({max_file_size // (1024*1024)}MB)"}
+        
         # 检查文件类型
         allowed_extensions = ['.md', '.pdf', '.txt', '.docx', '.html']
         file_extension = os.path.splitext(file.name)[1].lower()
@@ -326,14 +331,27 @@ def upload_document(request, kb_id: int, file: UploadedFile = File(...)):
         if file_extension not in allowed_extensions:
             return {"success": False, "error": f"不支持的文件类型: {file_extension}"}
         
-        # 保存文件
+        # 创建上传目录
         upload_dir = f"media/knowledge_bases/{kb_id}/documents"
         os.makedirs(upload_dir, exist_ok=True)
         
-        file_path = os.path.join(upload_dir, file.name)
-        with open(file_path, 'wb') as f:
-            for chunk in file.chunks():
-                f.write(chunk)
+        # 生成唯一文件名避免冲突
+        import uuid
+        unique_filename = f"{uuid.uuid4().hex[:8]}_{file.name}"
+        file_path = os.path.join(upload_dir, unique_filename)
+        
+        # 保存文件 - 优化大文件处理
+        logger.info(f"开始保存文件: {file.name}, 大小: {file.size} bytes")
+        try:
+            with open(file_path, 'wb') as f:
+                # 分块写入，减少内存使用
+                for chunk in file.chunks(chunk_size=8192):  # 8KB chunks
+                    f.write(chunk)
+        except Exception as e:
+            logger.error(f"文件保存失败: {e}")
+            return {"success": False, "error": f"文件保存失败: {str(e)}"}
+        
+        logger.info(f"文件保存成功: {file_path}")
         
         # 创建文档记录
         document = Document.objects.create(
@@ -366,7 +384,9 @@ def upload_document(request, kb_id: int, file: UploadedFile = File(...)):
                     "data": {
                         "document_id": document.id,
                         "chunk_count": result.get('chunk_count', 0),
-                        "status": "completed"
+                        "status": "completed",
+                        "file_size": file.size,
+                        "file_name": file.name
                     }
                 }
             else:
@@ -387,7 +407,8 @@ def upload_document(request, kb_id: int, file: UploadedFile = File(...)):
         # 用户不存在的错误
         return {"success": False, "error": str(e)}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error(f"上传文档异常: {str(e)}", exc_info=True)
+        return {"success": False, "error": f"上传失败: {str(e)}"}
 
 
 @router.post("/documents/{kb_id}/batch-upload", summary="批量上传文档", **auth)
@@ -405,9 +426,19 @@ def batch_upload_documents(request, kb_id: int):
         
         results = []
         allowed_extensions = ['.md', '.pdf', '.txt', '.docx', '.html']
+        max_file_size = 500 * 1024 * 1024  # 500MB
         
         for file in files:
             try:
+                # 检查文件大小
+                if file.size > max_file_size:
+                    results.append({
+                        "file_name": file.name,
+                        "success": False,
+                        "error": f"文件大小超过限制({max_file_size // (1024*1024)}MB)"
+                    })
+                    continue
+                
                 # 检查文件类型
                 file_extension = os.path.splitext(file.name)[1].lower()
                 
@@ -419,14 +450,32 @@ def batch_upload_documents(request, kb_id: int):
                     })
                     continue
                 
-                # 保存文件
+                # 创建上传目录
                 upload_dir = f"media/knowledge_bases/{kb_id}/documents"
                 os.makedirs(upload_dir, exist_ok=True)
                 
-                file_path = os.path.join(upload_dir, file.name)
-                with open(file_path, 'wb') as f:
-                    for chunk in file.chunks():
-                        f.write(chunk)
+                # 生成唯一文件名避免冲突
+                import uuid
+                unique_filename = f"{uuid.uuid4().hex[:8]}_{file.name}"
+                file_path = os.path.join(upload_dir, unique_filename)
+                
+                # 保存文件 - 优化大文件处理
+                logger.info(f"开始批量保存文件: {file.name}, 大小: {file.size} bytes")
+                try:
+                    with open(file_path, 'wb') as f:
+                        # 分块写入，减少内存使用
+                        for chunk in file.chunks(chunk_size=8192):  # 8KB chunks
+                            f.write(chunk)
+                except Exception as e:
+                    logger.error(f"批量文件保存失败: {e}")
+                    results.append({
+                        "file_name": file.name,
+                        "success": False,
+                        "error": f"文件保存失败: {str(e)}"
+                    })
+                    continue
+                
+                logger.info(f"批量文件保存成功: {file_path}")
                 
                 # 创建文档记录
                 document = Document.objects.create(
@@ -457,7 +506,8 @@ def batch_upload_documents(request, kb_id: int):
                         "file_name": file.name,
                         "success": True,
                         "document_id": document.id,
-                        "chunk_count": result.get('chunk_count', 0)
+                        "chunk_count": result.get('chunk_count', 0),
+                        "file_size": file.size
                     })
                 else:
                     document.status = 'failed'
@@ -499,7 +549,8 @@ def batch_upload_documents(request, kb_id: int):
         # 用户不存在的错误
         return {"success": False, "error": str(e)}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error(f"批量上传文档异常: {str(e)}", exc_info=True)
+        return {"success": False, "error": f"批量上传失败: {str(e)}"}
 
 
 # ==================== 问答功能 ====================
