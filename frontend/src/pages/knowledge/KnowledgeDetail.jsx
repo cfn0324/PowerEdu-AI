@@ -29,6 +29,7 @@ const { Title, Paragraph } = Typography;
 
 const KnowledgeDetail = () => {
   const [knowledgeBase, setKnowledgeBase] = useState(null);
+  const [kbStats, setKbStats] = useState(null);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -42,8 +43,10 @@ const KnowledgeDetail = () => {
   const fetchKnowledgeBaseDetail = async () => {
     try {
       const response = await knowledgeApi.getKnowledgeBase(kbId);
+      console.log('获取知识库详情响应:', response.data);
       if (response.data?.success) {
         setKnowledgeBase(response.data.data.knowledge_base);
+        setKbStats(response.data.data);
       } else {
         message.error(response.data?.error || '知识库不存在');
         navigate('/knowledge');
@@ -60,9 +63,16 @@ const KnowledgeDetail = () => {
   const fetchDocuments = async () => {
     try {
       const response = await knowledgeApi.getDocuments(kbId);
-      setDocuments(response.data || []);
+      console.log('获取文档列表响应:', response.data);
+      if (response.data?.success) {
+        setDocuments(response.data.data.items || []);
+      } else {
+        console.error('获取文档列表失败:', response.data?.error);
+        setDocuments([]);
+      }
     } catch (error) {
       console.error('获取文档列表失败:', error);
+      setDocuments([]);
     }
   };
 
@@ -210,17 +220,25 @@ const KnowledgeDetail = () => {
               <Col span={24} style={{ marginBottom: '16px' }}>
                 <Statistic
                   title="文档数量"
-                  value={documents.length}
+                  value={kbStats?.document_count || 0}
                   prefix={<FileTextOutlined />}
+                  suffix="个"
+                />
+              </Col>
+              <Col span={24} style={{ marginBottom: '16px' }}>
+                <Statistic
+                  title="向量块数量"
+                  value={kbStats?.stats?.total_chunks || 0}
+                  prefix={<DatabaseOutlined />}
                   suffix="个"
                 />
               </Col>
               <Col span={24}>
                 <Statistic
                   title="知识库状态"
-                  value={knowledgeBase.is_active ? '正常运行' : '已禁用'}
+                  value={knowledgeBase?.is_active ? '正常运行' : '已禁用'}
                   valueStyle={{ 
-                    color: knowledgeBase.is_active ? '#3f8600' : '#cf1322' 
+                    color: knowledgeBase?.is_active ? '#3f8600' : '#cf1322' 
                   }}
                 />
               </Col>

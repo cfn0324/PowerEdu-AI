@@ -375,7 +375,7 @@ def upload_document(request, kb_id: int, file: UploadedFile = File(...)):
         try:
             rag_system = get_rag_system()
             logger.info(f"开始处理文档: {file.name}, 文件大小: {file.size}")
-            result = rag_system.process_document(kb_id, file_path)
+            result = rag_system.process_document(kb_id, file_path, document.id)
             logger.info(f"文档处理结果: {result}")
             
             if result.get('success', False):
@@ -498,7 +498,7 @@ def batch_upload_documents(request, kb_id: int):
                 # 处理文档
                 rag_system = get_rag_system()
                 logger.info(f"开始批量处理文档: {file.name}, 文件大小: {file.size}")
-                result = rag_system.process_document(kb_id, file_path)
+                result = rag_system.process_document(kb_id, file_path, document.id)
                 logger.info(f"批量文档处理结果: {result}")
                 
                 if result.get('success', False):
@@ -643,6 +643,34 @@ def ask_question(request, data: QARequestSchema):
         
         # 执行问答
         async def run_qa():
+            from asgiref.sync import sync_to_async
+            
+            @sync_to_async
+            def get_doc_count():
+                return Document.objects.filter(
+                    knowledge_base_id=data.kb_id,
+                    status='completed'
+                ).count()
+            
+            try:
+                # 获取知识库的文档数量
+                doc_count = await get_doc_count()
+                
+                # 检查RAG系统中是否已有文档
+                vector_store = rag_system.get_or_create_vector_store(data.kb_id)
+                
+                # 如果向量存储为空但数据库中有文档，则手动加载
+                if len(vector_store.chunks) == 0 and doc_count > 0:
+                    logger.info(f"知识库 {data.kb_id} 的向量存储为空，开始手动加载文档数据")
+                    loaded_count = rag_system.manually_load_documents(data.kb_id)
+                    logger.info(f"成功加载 {loaded_count} 个文档块")
+                else:
+                    logger.info(f"知识库 {data.kb_id} 中已有 {len(vector_store.chunks)} 个文档块")
+                    
+            except Exception as e:
+                logger.error(f"加载文档时出错: {e}")
+                # 继续执行，即使加载失败也允许问答（可能返回通用回答）
+            
             return await rag_system.ask_question(
                 kb_id=data.kb_id,
                 question=data.question,

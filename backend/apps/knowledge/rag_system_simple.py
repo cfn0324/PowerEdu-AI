@@ -208,20 +208,63 @@ class TextSplitter:
 class SimpleEmbedding:
     """简单的嵌入模型实现"""
     
-    def __init__(self):
+    def __init__(self, vector_size=300):
+        self.vector_size = vector_size
         self.is_fitted = True  # 简化版本，不需要训练
+        # 预定义词汇表和哈希函数
+        self.vocab = {}
+        self.vocab_size = 1000  # 限制词汇表大小
+    
+    def _get_vocab(self, texts):
+        """建立词汇表"""
+        vocab = set()
+        for text in texts:
+            # 简单的中文分词（按字符）
+            chars = list(text)
+            vocab.update(chars)
+        
+        # 限制词汇表大小，选择最常见的字符
+        if len(vocab) > self.vocab_size:
+            from collections import Counter
+            all_chars = []
+            for text in texts:
+                all_chars.extend(list(text))
+            char_counts = Counter(all_chars)
+            vocab = [char for char, count in char_counts.most_common(self.vocab_size)]
+        else:
+            vocab = list(vocab)
+        
+        return vocab
     
     def encode(self, texts: List[str]) -> np.ndarray:
         """编码文本为向量"""
-        # 简单的字符级向量化
-        vocab = set()
-        for text in texts:
-            vocab.update(text)
-        vocab = sorted(list(vocab))
+        if not texts:
+            return np.array([])
+        
+        # 如果是第一次编码，建立词汇表
+        if not self.vocab:
+            vocab_list = self._get_vocab(texts)
+            self.vocab = {char: i for i, char in enumerate(vocab_list)}
         
         vectors = []
         for text in texts:
-            vector = [text.count(char) for char in vocab]
+            # 创建固定大小的向量
+            vector = np.zeros(self.vector_size)
+            
+            # 字符级别的简单编码
+            chars = list(text)
+            for i, char in enumerate(chars):
+                if char in self.vocab:
+                    idx = self.vocab[char]
+                    # 使用哈希函数映射到固定大小的向量
+                    pos = idx % self.vector_size
+                    vector[pos] += 1
+            
+            # 归一化
+            norm = np.linalg.norm(vector)
+            if norm > 0:
+                vector = vector / norm
+            
             vectors.append(vector)
         
         return np.array(vectors, dtype=float)
@@ -237,18 +280,85 @@ class VectorStore:
         self.metadata = []
     
     def add_documents(self, chunks: List[Dict]):
-        """添加文档块"""
-        for chunk in chunks:
-            self.chunks.append(chunk['content'])
-            self.metadata.append(chunk['metadata'])
+        """添加文档块并持久化到数据库"""
+        from django.db import transaction
+        from apps.knowledge.models import DocumentChunk, Document
+        
+        with transaction.atomic():
+            for chunk in chunks:
+                self.chunks.append(chunk['content'])
+                self.metadata.append(chunk['metadata'])
+                
+                # 持久化到数据库
+                if 'document_id' in chunk['metadata']:
+                    try:
+                        document = Document.objects.get(id=chunk['metadata']['document_id'])
+                        DocumentChunk.objects.create(
+                            document=document,
+                            chunk_index=chunk['metadata'].get('chunk_index', 0),
+                            content=chunk['content'],
+                            embedding=None,  # 向量将在_update_vectors中更新
+                            metadata=chunk['metadata']
+                        )
+                    except Document.DoesNotExist:
+                        logger.warning(f"Document with ID {chunk['metadata']['document_id']} not found")
         
         # 重新计算向量
         self._update_vectors()
     
     def _update_vectors(self):
-        """更新向量"""
+        """更新向量并持久化到数据库"""
         if self.chunks:
             self.vectors = self.embedding_model.encode(self.chunks)
+            
+            # 更新数据库中的向量 - 处理异步环境
+            from apps.knowledge.models import DocumentChunk
+            import asyncio
+            import threading
+            import queue
+            
+            # 检查是否在异步环境中
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # 在异步环境中，使用线程来执行同步数据库操作
+                    def sync_update_embeddings():
+                        for i, vector in enumerate(self.vectors):
+                            if i < len(self.metadata) and 'document_id' in self.metadata[i]:
+                                try:
+                                    chunk = DocumentChunk.objects.filter(
+                                        document_id=self.metadata[i]['document_id'],
+                                        chunk_index=self.metadata[i].get('chunk_index', 0)
+                                    ).first()
+                                    if chunk:
+                                        chunk.embedding = vector.tolist()
+                                        chunk.save()
+                                except Exception as e:
+                                    logger.warning(f"Failed to update embedding for chunk {i}: {e}")
+                    
+                    # 在独立线程中执行数据库更新
+                    thread = threading.Thread(target=sync_update_embeddings)
+                    thread.start()
+                    thread.join()
+                    return
+                    
+            except RuntimeError:
+                # 没有事件循环，可以进行同步操作
+                pass
+            
+            # 同步环境中的正常更新
+            for i, vector in enumerate(self.vectors):
+                if i < len(self.metadata) and 'document_id' in self.metadata[i]:
+                    try:
+                        chunk = DocumentChunk.objects.filter(
+                            document_id=self.metadata[i]['document_id'],
+                            chunk_index=self.metadata[i].get('chunk_index', 0)
+                        ).first()
+                        if chunk:
+                            chunk.embedding = vector.tolist()
+                            chunk.save()
+                    except Exception as e:
+                        logger.warning(f"Failed to update embedding for chunk {i}: {e}")
     
     def similarity_search(self, query: str, top_k: int = 5, threshold: float = 0.1) -> List[Dict]:
         """相似度搜索"""
@@ -345,7 +455,18 @@ class LLMInterface:
         
         # 构建提示词
         if context:
-            full_prompt = f"基于以下上下文信息回答问题：\n\n上下文：{context}\n\n问题：{prompt}\n\n请基于上下文信息给出准确、有帮助的回答。如果上下文中没有相关信息，请说明并基于你的知识给出合理的回答。"
+            # 针对知识库介绍类问题，使用更具体的提示词
+            if any(keyword in prompt.lower() for keyword in ['介绍', '主要内容', '包含', '涵盖', '有什么', '什么是']):
+                full_prompt = f"""你是一个专业的知识库助手。基于以下知识库文档内容，请详细介绍这个知识库的主要内容和特点。
+
+知识库文档内容：
+{context}
+
+用户问题：{prompt}
+
+请根据上述文档内容，详细介绍这个知识库涵盖的主要内容、知识点和特色。如果文档内容不足以全面回答，请基于现有内容进行合理的总结和介绍。"""
+            else:
+                full_prompt = f"基于以下上下文信息回答问题：\n\n上下文：{context}\n\n问题：{prompt}\n\n请基于上下文信息给出准确、有帮助的回答。如果上下文中没有相关信息，请说明并基于你的知识给出合理的回答。"
         else:
             full_prompt = f"问题：{prompt}\n\n请给出准确、有帮助的回答。"
         
@@ -519,7 +640,222 @@ class RAGSystem:
         """获取或创建知识库的向量存储"""
         if kb_id not in self.knowledge_bases:
             self.knowledge_bases[kb_id] = VectorStore()
+            # 从数据库加载已有的文档数据
+            self._load_existing_documents(kb_id)
         return self.knowledge_bases[kb_id]
+    
+    def _load_existing_documents(self, kb_id: int):
+        """从数据库加载已有的文档数据到向量存储"""
+        try:
+            from apps.knowledge.models import DocumentChunk
+            import asyncio
+            
+            # 检查是否在异步环境中
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # 在异步环境中，使用同步方式强制加载
+                    logger.info(f"在异步环境中强制加载知识库 {kb_id} 的数据")
+                    # 创建新的线程来执行同步数据库操作
+                    import threading
+                    import queue
+                    
+                    result_queue = queue.Queue()
+                    
+                    def sync_load():
+                        try:
+                            # 获取知识库中所有已完成的文档块
+                            chunks = DocumentChunk.objects.filter(
+                                document__knowledge_base_id=kb_id,
+                                document__status='completed'
+                            ).select_related('document')
+                            
+                            chunk_data = []
+                            for chunk in chunks:
+                                chunk_data.append({
+                                    'content': chunk.content,
+                                    'metadata': {
+                                        'document_id': chunk.document.id,
+                                        'chunk_index': chunk.chunk_index,
+                                        'source': chunk.document.file_path,
+                                        'type': chunk.document.file_type,
+                                        **chunk.metadata
+                                    }
+                                })
+                            result_queue.put(chunk_data)
+                        except Exception as e:
+                            result_queue.put(e)
+                    
+                    thread = threading.Thread(target=sync_load)
+                    thread.start()
+                    thread.join()
+                    
+                    chunk_data = result_queue.get()
+                    if isinstance(chunk_data, Exception):
+                        raise chunk_data
+                    
+                    vector_store = self.knowledge_bases[kb_id]
+                    for chunk_info in chunk_data:
+                        vector_store.chunks.append(chunk_info['content'])
+                        vector_store.metadata.append(chunk_info['metadata'])
+                    
+                    # 重建向量
+                    if vector_store.chunks:
+                        vector_store._update_vectors()
+                    
+                    logger.info(f"从数据库加载知识库 {kb_id} 的文档数据: {len(vector_store.chunks)} 个块")
+                    return
+                    
+            except RuntimeError:
+                # 没有事件循环，可以进行同步操作
+                pass
+            
+            # 同步环境中的正常加载
+            # 获取知识库中所有已完成的文档块
+            chunks = DocumentChunk.objects.filter(
+                document__knowledge_base_id=kb_id,
+                document__status='completed'
+            ).select_related('document')
+            
+            vector_store = self.knowledge_bases[kb_id]
+            
+            for chunk in chunks:
+                # 添加文档内容和元数据
+                vector_store.chunks.append(chunk.content)
+                vector_store.metadata.append({
+                    'document_id': chunk.document.id,
+                    'chunk_index': chunk.chunk_index,
+                    'source': chunk.document.file_path,
+                    'type': chunk.document.file_type,
+                    **chunk.metadata
+                })
+            
+            # 重建向量
+            if vector_store.chunks:
+                vector_store._update_vectors()
+                
+            logger.info(f"从数据库加载知识库 {kb_id} 的文档数据: {len(vector_store.chunks)} 个块")
+            
+        except Exception as e:
+            logger.error(f"加载知识库 {kb_id} 的文档数据失败: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def manually_load_documents(self, kb_id: int):
+        """手动加载知识库文档数据（同步方法）"""
+        try:
+            from apps.knowledge.models import DocumentChunk
+            import asyncio
+            import threading
+            import queue
+            
+            # 检查是否在异步环境中
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # 在异步环境中，使用同步方式强制加载
+                    logger.info(f"在异步环境中强制加载知识库 {kb_id} 的文档数据")
+                    
+                    result_queue = queue.Queue()
+                    
+                    def sync_load():
+                        try:
+                            # 获取知识库中所有已完成的文档块
+                            chunks = DocumentChunk.objects.filter(
+                                document__knowledge_base_id=kb_id,
+                                document__status='completed'
+                            ).select_related('document')
+                            
+                            chunk_data = []
+                            for chunk in chunks:
+                                chunk_data.append({
+                                    'content': chunk.content,
+                                    'metadata': {
+                                        'document_id': chunk.document.id,
+                                        'chunk_index': chunk.chunk_index,
+                                        'source': chunk.document.file_path,
+                                        'type': chunk.document.file_type,
+                                        **chunk.metadata
+                                    }
+                                })
+                            result_queue.put(chunk_data)
+                        except Exception as e:
+                            result_queue.put(e)
+                    
+                    thread = threading.Thread(target=sync_load)
+                    thread.start()
+                    thread.join()
+                    
+                    chunk_data = result_queue.get()
+                    if isinstance(chunk_data, Exception):
+                        raise chunk_data
+                    
+                    # 确保向量存储已初始化
+                    if kb_id not in self.knowledge_bases:
+                        self.knowledge_bases[kb_id] = VectorStore()
+                    
+                    vector_store = self.knowledge_bases[kb_id]
+                    
+                    # 清空现有数据
+                    vector_store.chunks.clear()
+                    vector_store.metadata.clear()
+                    
+                    # 加载新数据
+                    for chunk_info in chunk_data:
+                        vector_store.chunks.append(chunk_info['content'])
+                        vector_store.metadata.append(chunk_info['metadata'])
+                    
+                    # 重建向量
+                    if vector_store.chunks:
+                        vector_store._update_vectors()
+                    
+                    logger.info(f"异步环境中成功加载知识库 {kb_id} 的文档数据: {len(vector_store.chunks)} 个块")
+                    return len(vector_store.chunks)
+                    
+            except RuntimeError:
+                # 没有事件循环，可以进行同步操作
+                pass
+            
+            # 同步环境中的正常加载
+            # 获取知识库中所有已完成的文档块
+            chunks = DocumentChunk.objects.filter(
+                document__knowledge_base_id=kb_id,
+                document__status='completed'
+            ).select_related('document')
+            
+            # 获取或创建向量存储
+            if kb_id not in self.knowledge_bases:
+                self.knowledge_bases[kb_id] = VectorStore()
+            
+            vector_store = self.knowledge_bases[kb_id]
+            
+            # 清空现有数据
+            vector_store.chunks.clear()
+            vector_store.metadata.clear()
+            
+            for chunk in chunks:
+                # 添加文档内容和元数据
+                vector_store.chunks.append(chunk.content)
+                vector_store.metadata.append({
+                    'document_id': chunk.document.id,
+                    'chunk_index': chunk.chunk_index,
+                    'source': chunk.document.file_path,
+                    'type': chunk.document.file_type,
+                    **chunk.metadata
+                })
+            
+            # 重建向量
+            if vector_store.chunks:
+                vector_store._update_vectors()
+                
+            logger.info(f"手动加载知识库 {kb_id} 的文档数据: {len(vector_store.chunks)} 个块")
+            return len(vector_store.chunks)
+            
+        except Exception as e:
+            logger.error(f"手动加载知识库 {kb_id} 的文档数据失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return 0
     
     def configure_llm(self, config_id: int, model_config: Dict):
         """配置大语言模型"""
@@ -530,6 +866,10 @@ class RAGSystem:
         try:
             # 处理文档
             content, metadata = self.document_processor.process_file(file_path)
+            
+            # 为每个块添加document_id到元数据中
+            if document_id:
+                metadata['document_id'] = document_id
             
             # 分块
             chunks = self.text_splitter.split_text(content, metadata)
@@ -563,16 +903,30 @@ class RAGSystem:
             # 获取向量存储
             vector_store = self.get_or_create_vector_store(kb_id)
             
+            # 如果向量存储为空，尝试加载文档
+            if len(vector_store.chunks) == 0:
+                logger.info(f"知识库 {kb_id} 为空，尝试加载文档")
+                self.manually_load_documents(kb_id)
+                # 重新获取向量存储
+                vector_store = self.get_or_create_vector_store(kb_id)
+            
+            # 添加调试信息
+            logger.info(f"知识库 {kb_id} 中有 {len(vector_store.chunks)} 个文档块")
+            
             # 检索相关文档
             relevant_docs = vector_store.similarity_search(question, top_k=top_k, threshold=threshold)
+            
+            logger.info(f"检索到 {len(relevant_docs)} 个相关文档片段，阈值: {threshold}")
             
             # 构建上下文
             if relevant_docs:
                 context = "\n".join([doc['content'] for doc in relevant_docs])
                 context_info = f"基于知识库中的 {len(relevant_docs)} 个相关文档片段："
+                logger.info(f"构建的上下文长度: {len(context)} 字符")
             else:
                 context = ""
                 context_info = "知识库中没有找到相关信息，但我可以基于我的知识来回答："
+                logger.warning(f"知识库 {kb_id} 中没有找到与问题 '{question}' 相关的文档")
             
             # 生成回答 - 无论是否找到相关文档都尝试调用大模型
             llm = self.llm_configs.get(config_id) if config_id else None
