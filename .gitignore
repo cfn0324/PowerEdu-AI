@@ -44,12 +44,32 @@ debug_*.py
 simple_*.py
 *_test.py
 *_debug.py
+*_test.*
+*_debug.*
 project_status_check.py
 initialize_system.py
 start_test.bat
+check_services.ps1
+install_gemini_deps.ps1
+start_services.ps1
+diagnose_*.py
+final_check.py
+update_gemini_config.py
+check_db_config.py
+test_document.txt
+
+# Documentation Files (临时和修复文档)
 AI_PREDICTION_FIX_REPORT.md
 MODELMANAGER_PREDICT_FIX.md
 *_FIX_REPORT.md
+*_FIX_SUMMARY.md
+*_PROGRESS_SUMMARY.md
+*_CONFIG_GUIDE.md
+GEMINI_*.md
+QA_FIX_GUIDE.md
+TROUBLESHOOTING.md
+URL_FIX_SUMMARY.md
+LARGE_FILE_UPLOAD.md
 
 # Node.js
 node_modules/
