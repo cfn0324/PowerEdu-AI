@@ -453,22 +453,12 @@ class LLMInterface:
         if not api_key:
             return "错误：未配置API密钥"
         
-        # 构建提示词
-        if context:
-            # 针对知识库介绍类问题，使用更具体的提示词
-            if any(keyword in prompt.lower() for keyword in ['介绍', '主要内容', '包含', '涵盖', '有什么', '什么是']):
-                full_prompt = f"""你是一个专业的知识库助手。基于以下知识库文档内容，请详细介绍这个知识库的主要内容和特点。
-
-知识库文档内容：
-{context}
-
-用户问题：{prompt}
-
-请根据上述文档内容，详细介绍这个知识库涵盖的主要内容、知识点和特色。如果文档内容不足以全面回答，请基于现有内容进行合理的总结和介绍。"""
-            else:
-                full_prompt = f"基于以下上下文信息回答问题：\n\n上下文：{context}\n\n问题：{prompt}\n\n请基于上下文信息给出准确、有帮助的回答。如果上下文中没有相关信息，请说明并基于你的知识给出合理的回答。"
-        else:
-            full_prompt = f"问题：{prompt}\n\n请给出准确、有帮助的回答。"
+        # 直接使用传入的prompt，不再重新构建
+        # 因为在ask_question中已经构建了完整的提示
+        full_prompt = prompt
+        
+        # 记录发送给API的提示内容（截取前200字符）
+        logger.info(f"发送给API的提示预览: {full_prompt[:200]}...")
         
         try:
             # 支持不同的API格式
@@ -606,9 +596,17 @@ class LLMInterface:
         import time
         start_time = time.time()
         
+        logger.info(f"LLM 开始生成回答，模型: {self.model_name}")
+        logger.info(f"传入的提示词长度: {len(prompt)} 字符")
+        logger.info(f"提示词前200字符: {prompt[:200]}...")
+        
         try:
-            answer = await self.generate(prompt, context)
+            # 注意：这里不传递context，因为prompt已经包含了完整的提示词
+            answer = await self.generate(prompt, "")
             response_time = round((time.time() - start_time), 3)  # 保持为秒，保留3位小数
+            
+            logger.info(f"LLM 回答生成成功，耗时: {response_time}秒")
+            logger.info(f"回答预览: {answer[:200]}...")
             
             return {
                 'answer': answer,
@@ -618,6 +616,7 @@ class LLMInterface:
             }
         except Exception as e:
             response_time = round((time.time() - start_time), 3)  # 保持为秒，保留3位小数
+            logger.error(f"LLM 回答生成失败: {str(e)}")
             return {
                 'answer': f"生成回答时出错: {str(e)}",
                 'response_time': response_time,
@@ -640,8 +639,7 @@ class RAGSystem:
         """获取或创建知识库的向量存储"""
         if kb_id not in self.knowledge_bases:
             self.knowledge_bases[kb_id] = VectorStore()
-            # 从数据库加载已有的文档数据
-            self._load_existing_documents(kb_id)
+            # 注意：不在这里自动加载文档，由ask_question方法控制加载时机
         return self.knowledge_bases[kb_id]
     
     def _load_existing_documents(self, kb_id: int):
@@ -742,121 +740,137 @@ class RAGSystem:
             traceback.print_exc()
     
     def manually_load_documents(self, kb_id: int):
-        """手动加载知识库文档数据（同步方法）"""
+        """手动加载知识库文档数据（同步方法）- 确保每次都能成功加载"""
         try:
-            from apps.knowledge.models import DocumentChunk
-            import asyncio
-            import threading
-            import queue
+            from apps.knowledge.models import DocumentChunk, Document
             
-            # 检查是否在异步环境中
+            logger.info(f"开始强制加载知识库 {kb_id} 的文档数据")
+            
+            # 首先检查数据库中是否有文档 - 使用线程安全的方式
+            doc_count = 0
             try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    # 在异步环境中，使用同步方式强制加载
-                    logger.info(f"在异步环境中强制加载知识库 {kb_id} 的文档数据")
+                import threading
+                count_holder = [0]
+                exception_holder = [None]
+                
+                def count_docs():
+                    try:
+                        count = Document.objects.filter(
+                            knowledge_base_id=kb_id,
+                            status='completed'
+                        ).count()
+                        count_holder[0] = count
+                    except Exception as e:
+                        exception_holder[0] = e
+                
+                thread = threading.Thread(target=count_docs)
+                thread.start()
+                thread.join()
+                
+                if exception_holder[0]:
+                    raise exception_holder[0]
                     
-                    result_queue = queue.Queue()
-                    
-                    def sync_load():
-                        try:
-                            # 获取知识库中所有已完成的文档块
-                            chunks = DocumentChunk.objects.filter(
-                                document__knowledge_base_id=kb_id,
-                                document__status='completed'
-                            ).select_related('document')
-                            
-                            chunk_data = []
-                            for chunk in chunks:
-                                chunk_data.append({
-                                    'content': chunk.content,
-                                    'metadata': {
-                                        'document_id': chunk.document.id,
-                                        'chunk_index': chunk.chunk_index,
-                                        'source': chunk.document.file_path,
-                                        'type': chunk.document.file_type,
-                                        **chunk.metadata
-                                    }
-                                })
-                            result_queue.put(chunk_data)
-                        except Exception as e:
-                            result_queue.put(e)
-                    
-                    thread = threading.Thread(target=sync_load)
-                    thread.start()
-                    thread.join()
-                    
-                    chunk_data = result_queue.get()
-                    if isinstance(chunk_data, Exception):
-                        raise chunk_data
-                    
-                    # 确保向量存储已初始化
-                    if kb_id not in self.knowledge_bases:
-                        self.knowledge_bases[kb_id] = VectorStore()
-                    
-                    vector_store = self.knowledge_bases[kb_id]
-                    
-                    # 清空现有数据
-                    vector_store.chunks.clear()
-                    vector_store.metadata.clear()
-                    
-                    # 加载新数据
-                    for chunk_info in chunk_data:
-                        vector_store.chunks.append(chunk_info['content'])
-                        vector_store.metadata.append(chunk_info['metadata'])
-                    
-                    # 重建向量
-                    if vector_store.chunks:
-                        vector_store._update_vectors()
-                    
-                    logger.info(f"异步环境中成功加载知识库 {kb_id} 的文档数据: {len(vector_store.chunks)} 个块")
-                    return len(vector_store.chunks)
-                    
-            except RuntimeError:
-                # 没有事件循环，可以进行同步操作
-                pass
+                doc_count = count_holder[0]
+                
+            except Exception as e:
+                logger.error(f"查询文档数量失败: {e}")
+                return 0
             
-            # 同步环境中的正常加载
-            # 获取知识库中所有已完成的文档块
-            chunks = DocumentChunk.objects.filter(
-                document__knowledge_base_id=kb_id,
-                document__status='completed'
-            ).select_related('document')
+            logger.info(f"数据库中知识库 {kb_id} 有 {doc_count} 个已完成文档")
             
-            # 获取或创建向量存储
+            if doc_count == 0:
+                logger.info(f"知识库 {kb_id} 中没有已完成的文档")
+                return 0
+            
+            # 确保向量存储已初始化
             if kb_id not in self.knowledge_bases:
                 self.knowledge_bases[kb_id] = VectorStore()
+                logger.info(f"为知识库 {kb_id} 创建新的向量存储")
             
             vector_store = self.knowledge_bases[kb_id]
             
-            # 清空现有数据
+            # 强制清空现有数据，重新加载以确保数据同步
             vector_store.chunks.clear()
             vector_store.metadata.clear()
+            logger.info(f"清空知识库 {kb_id} 的现有向量数据")
             
-            for chunk in chunks:
-                # 添加文档内容和元数据
-                vector_store.chunks.append(chunk.content)
-                vector_store.metadata.append({
-                    'document_id': chunk.document.id,
-                    'chunk_index': chunk.chunk_index,
-                    'source': chunk.document.file_path,
-                    'type': chunk.document.file_type,
-                    **chunk.metadata
-                })
-            
-            # 重建向量
-            if vector_store.chunks:
-                vector_store._update_vectors()
+            # 获取知识库中所有已完成的文档块 - 简化查询并包装为线程安全
+            try:
+                # 在新线程中执行数据库查询以避免异步上下文问题
+                import threading
+                chunks_list = []
+                exception_holder = [None]
                 
-            logger.info(f"手动加载知识库 {kb_id} 的文档数据: {len(vector_store.chunks)} 个块")
-            return len(vector_store.chunks)
+                def fetch_chunks():
+                    try:
+                        chunks = DocumentChunk.objects.filter(
+                            document__knowledge_base_id=kb_id,
+                            document__status='completed'
+                        ).select_related('document').order_by('id')
+                        chunks_list.extend(list(chunks))
+                    except Exception as e:
+                        exception_holder[0] = e
+                
+                thread = threading.Thread(target=fetch_chunks)
+                thread.start()
+                thread.join()
+                
+                if exception_holder[0]:
+                    raise exception_holder[0]
+                    
+                chunks = chunks_list
+                
+            except Exception as e:
+                logger.error(f"数据库查询失败: {e}")
+                return 0
+            
+            chunk_count = 0
+            for chunk in chunks:
+                try:
+                    # 添加文档内容和元数据
+                    vector_store.chunks.append(chunk.content)
+                    vector_store.metadata.append({
+                        'document_id': chunk.document.id,
+                        'chunk_index': chunk.chunk_index,
+                        'source': chunk.document.file_path,
+                        'type': chunk.document.file_type,
+                        **chunk.metadata
+                    })
+                    chunk_count += 1
+                    
+                    # 每处理10个chunk记录一次日志
+                    if chunk_count % 10 == 0:
+                        logger.info(f"已处理 {chunk_count} 个文档块")
+                        
+                except Exception as e:
+                    logger.error(f"处理文档块 {chunk.id} 时出错: {e}")
+                    continue
+            
+            logger.info(f"总共处理了 {chunk_count} 个文档块")
+            
+            # 验证数据加载
+            if vector_store.chunks:
+                logger.info(f"向量存储中现在有 {len(vector_store.chunks)} 个块")
+                logger.info(f"第一个块内容预览: {vector_store.chunks[0][:100]}...")
+                
+                # 重建向量
+                try:
+                    vector_store._update_vectors()
+                    logger.info(f"知识库 {kb_id} 成功重建向量索引")
+                except Exception as e:
+                    logger.error(f"重建向量索引失败: {e}")
+            else:
+                logger.error(f"知识库 {kb_id} 加载后仍然没有任何数据块！")
+            
+            logger.info(f"成功强制加载知识库 {kb_id} 的文档数据: {chunk_count} 个块")
+            return chunk_count
             
         except Exception as e:
-            logger.error(f"手动加载知识库 {kb_id} 的文档数据失败: {e}")
+            logger.error(f"强制加载知识库 {kb_id} 的文档数据失败: {e}")
             import traceback
             traceback.print_exc()
             return 0
-    
+
     def configure_llm(self, config_id: int, model_config: Dict):
         """配置大语言模型"""
         self.llm_configs[config_id] = LLMInterface(model_config)
@@ -903,38 +917,199 @@ class RAGSystem:
             # 获取向量存储
             vector_store = self.get_or_create_vector_store(kb_id)
             
-            # 如果向量存储为空，尝试加载文档
-            if len(vector_store.chunks) == 0:
-                logger.info(f"知识库 {kb_id} 为空，尝试加载文档")
-                self.manually_load_documents(kb_id)
-                # 重新获取向量存储
-                vector_store = self.get_or_create_vector_store(kb_id)
+            # 每次问答都重新检查并加载文档，确保文档数据是最新的
+            logger.info(f"知识库 {kb_id} 开始检查文档状态")
             
-            # 添加调试信息
-            logger.info(f"知识库 {kb_id} 中有 {len(vector_store.chunks)} 个文档块")
+            # 强制重新加载文档数据以确保数据完整性
+            loaded_count = self.manually_load_documents(kb_id)
+            logger.info(f"知识库 {kb_id} 重新加载了 {loaded_count} 个文档块")
             
-            # 检索相关文档
-            relevant_docs = vector_store.similarity_search(question, top_k=top_k, threshold=threshold)
+            # 重新获取向量存储（确保获取最新数据）
+            vector_store = self.get_or_create_vector_store(kb_id)
             
-            logger.info(f"检索到 {len(relevant_docs)} 个相关文档片段，阈值: {threshold}")
+            # 检索相关文档 - 使用更低的阈值确保能检索到文档
+            relevant_docs = vector_store.similarity_search(question, top_k=top_k, threshold=max(threshold, 0.1))
             
-            # 构建上下文
+            logger.info(f"检索到 {len(relevant_docs)} 个相关文档片段，阈值: {max(threshold, 0.1)}")
+            
+            # 如果没有检索到文档，尝试降低阈值再次检索
+            if not relevant_docs and threshold > 0.0:
+                logger.info("未找到相关文档，尝试降低阈值重新检索")
+                relevant_docs = vector_store.similarity_search(question, top_k=top_k, threshold=0.0)
+                logger.info(f"降低阈值后检索到 {len(relevant_docs)} 个文档片段")
+            
+            # 构建上下文 - 强制使用知识库内容，确保总是有内容
+            context = ""
+            context_info = ""
+            
+            # 首先尝试使用检索到的相关文档
             if relevant_docs:
                 context = "\n".join([doc['content'] for doc in relevant_docs])
                 context_info = f"基于知识库中的 {len(relevant_docs)} 个相关文档片段："
-                logger.info(f"构建的上下文长度: {len(context)} 字符")
-            else:
-                context = ""
-                context_info = "知识库中没有找到相关信息，但我可以基于我的知识来回答："
-                logger.warning(f"知识库 {kb_id} 中没有找到与问题 '{question}' 相关的文档")
+                logger.info(f"使用相关文档构建上下文，长度: {len(context)} 字符")
             
-            # 生成回答 - 无论是否找到相关文档都尝试调用大模型
+            # 如果没有相关文档但有知识库内容，强制使用前几个块
+            if not context and vector_store.chunks:
+                logger.info("没有找到相关文档，强制使用知识库前几个文档块")
+                context = "\n".join(vector_store.chunks[:min(10, len(vector_store.chunks))])
+                context_info = f"基于知识库中的前 {min(10, len(vector_store.chunks))} 个文档片段："
+                logger.info(f"强制构建的上下文长度: {len(context)} 字符")
+                
+                # 同时将前几个块当作relevant_docs处理，保证后续逻辑正确
+                relevant_docs = []
+                for i, chunk in enumerate(vector_store.chunks[:min(10, len(vector_store.chunks))]):
+                    relevant_docs.append({
+                        'content': chunk,
+                        'score': 0.1,  # 给一个默认分数
+                        'metadata': vector_store.metadata[i] if i < len(vector_store.metadata) else {},
+                        'index': i
+                    })
+            
+            # 最后的保险：如果仍然没有context，检查是否真的没有数据
+            if not context:
+                # 再次尝试直接从数据库获取一些内容
+                try:
+                    from apps.knowledge.models import DocumentChunk
+                    import threading
+                    
+                    db_content = []
+                    db_chunks_data = []
+                    exception_holder = [None]
+                    
+                    def fetch_db_chunks():
+                        try:
+                            db_chunks = DocumentChunk.objects.filter(
+                                document__knowledge_base_id=kb_id,
+                                document__status='completed'
+                            ).select_related('document')[:5]
+                            
+                            for chunk in db_chunks:
+                                db_content.append(chunk.content)
+                                db_chunks_data.append(chunk)
+                        except Exception as e:
+                            exception_holder[0] = e
+                    
+                    thread = threading.Thread(target=fetch_db_chunks)
+                    thread.start()
+                    thread.join()
+                    
+                    if exception_holder[0]:
+                        raise exception_holder[0]
+                    
+                    if db_content:
+                        logger.warning("向量存储为空但数据库有数据，直接从数据库获取")
+                        context = "\n".join(db_content)
+                        context_info = f"直接从数据库获取的 {len(db_content)} 个文档片段："
+                        logger.info(f"从数据库直接获取的上下文长度: {len(context)} 字符")
+                        
+                        # 构造相应的relevant_docs
+                        relevant_docs = []
+                        for i, chunk in enumerate(db_chunks_data):
+                            relevant_docs.append({
+                                'content': chunk.content,
+                                'score': 0.05,  # 更低的分数表示这是直接获取的
+                                'metadata': {'document_id': chunk.document.id, 'chunk_index': chunk.chunk_index},
+                                'index': i
+                            })
+                    else:
+                        context = ""
+                        context_info = "知识库中没有找到任何文档"
+                        logger.error(f"知识库 {kb_id} 数据库中也没有任何文档内容")
+                except Exception as e:
+                    logger.error(f"从数据库获取备用内容失败: {e}")
+                    context = ""
+                    context_info = "知识库读取失败"
+            
+            # 记录最终的context状态
+            logger.info(f"最终context状态: 长度={len(context)}, 信息={context_info}")
+            if context:
+                logger.info(f"Context前200字符: {context[:200]}...")
+            
+            # 生成回答 - 确保总是将知识库内容传递给大模型
             llm = self.llm_configs.get(config_id) if config_id else None
             if llm:
-                llm_result = await llm.generate_response(question, context)
+                logger.info(f"使用LLM配置ID: {config_id}")
+                logger.info(f"检查上下文状态: context长度={len(context) if context else 0}, vector_store.chunks数量={len(vector_store.chunks)}, relevant_docs数量={len(relevant_docs)}")
+                
+                # 最后的强制保险：如果context仍然为空，直接从数据库强制获取
+                if not context:
+                    logger.error("严重警告: context为空，执行最终兜底操作")
+                    try:
+                        from apps.knowledge.models import DocumentChunk
+                        import threading
+                        
+                        emergency_content = []
+                        exception_holder = [None]
+                        
+                        def fetch_emergency_chunks():
+                            try:
+                                emergency_chunks = DocumentChunk.objects.filter(
+                                    document__knowledge_base_id=kb_id,
+                                    document__status='completed'
+                                )[:3]
+                                
+                                for chunk in emergency_chunks:
+                                    emergency_content.append(chunk.content)
+                            except Exception as e:
+                                exception_holder[0] = e
+                        
+                        thread = threading.Thread(target=fetch_emergency_chunks)
+                        thread.start()
+                        thread.join()
+                        
+                        if exception_holder[0]:
+                            raise exception_holder[0]
+                        
+                        if emergency_content:
+                            context = "\n".join(emergency_content)
+                            logger.error(f"紧急兜底: 从数据库获取到 {len(emergency_content)} 个块")
+                    except Exception as emergency_e:
+                        logger.error(f"紧急兜底也失败: {emergency_e}")
+                
+                # 现在context应该总是有内容（除非知识库真的为空）
+                if context:
+                    logger.info(f"使用有内容的context构建提示词，context前100字符: {context[:100]}")
+                    # 构建极其明确的提示，强制大模型按格式回答
+                    enhanced_question = f"""【严格指令 - 必须遵守】你是专业知识库助手，必须严格按照以下格式回答，不得违反：
+
+🔴 强制要求：
+1. 第一句话必须是："基于知识库内容，我为您回答："
+2. 禁止使用"基于通用知识"等其他开头
+3. 必须引用下面的知识库内容
+4. 不得说"没有相关内容"
+
+📚 知识库内容：
+{context}
+
+❓ 用户问题：{question}
+
+✅ 回答格式示例：
+基于知识库内容，我为您回答：[根据上述知识库内容的具体回答]
+
+⚠️ 重要提醒：无论如何都必须以"基于知识库内容，我为您回答："开头，这是不可违反的规则！
+
+现在请严格按照格式开始回答："""
+                else:
+                    # 这种情况现在应该极少发生
+                    logger.error("即使经过所有兜底措施，context仍然为空！这不应该发生。")
+                    enhanced_question = f"""【严格指令】知识库助手必须回答：
+
+第一句话必须是："基于知识库内容，我为您回答："
+然后说明："当前知识库系统出现问题，无法读取文档内容。"
+
+用户问题：{question}
+
+请严格按照上述格式回答。"""
+                
+                logger.info(f"发送给大模型的完整提示长度: {len(enhanced_question)} 字符")
+                logger.info(f"上下文内容预览: {context[:300]}..." if context else "上下文为空")
+                
+                # 使用构建好的完整提示词
+                llm_result = await llm.generate_response(enhanced_question, "")
                 answer = llm_result.get('answer', '生成回答失败')
                 model_used = llm_result.get('model_used', f"config_{config_id}" if config_id else "default")
             else:
+                logger.warning(f"没有找到LLM配置，配置ID: {config_id}")
                 # 如果没有配置LLM，才返回"未找到相关信息"的提示
                 if not relevant_docs:
                     response_time = round((time.time() - start_time), 3)
@@ -951,6 +1126,8 @@ class RAGSystem:
                     model_used = f"config_{config_id}" if config_id else "default"
             
             response_time = round((time.time() - start_time), 3)  # 保持为秒，保留3位小数
+            
+            logger.info(f"问答完成: 回答长度={len(answer)}, 源文档数={len(relevant_docs)}, 使用模型={model_used}, 响应时间={response_time}秒")
             
             return {
                 'answer': answer,

@@ -676,7 +676,7 @@ def ask_question(request, data: QARequestSchema):
                 question=data.question,
                 config_id=config_id_to_use,
                 top_k=data.top_k or 5,
-                threshold=data.threshold or 0.5
+                threshold=data.threshold or 0.1  # 降低默认阈值，确保能检索到文档
             )
         
         # 在同步环境中运行异步函数
