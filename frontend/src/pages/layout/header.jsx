@@ -69,7 +69,9 @@ const Header = () => {
             <Link to="/prediction" style={{ textDecoration: 'none', color: 'inherit' }}>AI预测</Link>
           </li>
           <li>学习成就</li>
-          <li>用户中心</li>
+          <li>
+            <Link to="/profile" style={{ textDecoration: 'none', color: 'inherit' }}>用户中心</Link>
+          </li>
         </ul>
         </Link>
       </div>
