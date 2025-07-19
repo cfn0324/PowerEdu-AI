@@ -46,6 +46,7 @@ Set-Location backend
 python manage.py migrate --verbosity=0
 python manage.py init_data
 python manage.py init_achievements
+python manage.py init_knowledge
 Write-Host "SUCCESS: Database initialized" -ForegroundColor Green
 
 # Start Django backend

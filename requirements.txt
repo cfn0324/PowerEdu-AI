@@ -66,4 +66,5 @@ jieba>=0.42.1                    # 中文分词
 openai>=1.0.0                    # OpenAI API支持
 anthropic>=0.8.0                 # Anthropic API支持
 zhipuai>=2.0.0                   # 智谱AI API支持
+google-generativeai>=0.3.0       # Google Gemini API支持
 requests>=2.31.0                 # HTTP请求库

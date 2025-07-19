@@ -53,6 +53,9 @@ python manage.py createsuperuser
 
 # 初始化成就系统
 python manage.py init_achievements
+
+# 初始化知识库系统
+python manage.py init_knowledge
 ```
 ```
 
@@ -62,6 +65,7 @@ cd backend
 python manage.py migrate
 python manage.py init_data  # 创建默认admin用户
 python manage.py init_achievements  # 初始化成就系统
+python manage.py init_knowledge  # 初始化知识库系统
 python manage.py runserver
 ```
 
