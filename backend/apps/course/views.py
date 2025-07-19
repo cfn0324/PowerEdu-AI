@@ -43,4 +43,12 @@ def get_comments_by_course_id(request, course_id: int):
 @router.post("/comment/add", summary="添加评论", **auth)
 def add_comment(request, data: CommentCreate):
     Comment.objects.create(**data.dict(), user_id=request.auth)
+    
+    # 更新成就系统统计
+    try:
+        from apps.user.achievement_service import AchievementService
+        AchievementService.update_comment_stats(request.auth, data.course)
+    except Exception as e:
+        pass  # 成就系统错误不影响主要功能
+    
     return R.ok()

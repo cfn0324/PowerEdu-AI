@@ -2,6 +2,9 @@ from django.contrib import admin
 from .models import User, Banner, Feedback
 from django.utils.html import format_html
 
+# 导入成就相关admin
+from .achievement_admin import *
+
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
     list_display = ('username', 'nickname', 'avatar')

@@ -13,6 +13,7 @@ import KnowledgeDetail from "../pages/knowledge/KnowledgeDetail";
 import ModelSettings from "../pages/knowledge/ModelSettings";
 import ConnectionTest from "../pages/knowledge/ConnectionTest";
 import Login from "../pages/login";
+import Achievement from "../pages/achievement";
 
 const router = createBrowserRouter([
   {
@@ -42,6 +43,10 @@ const router = createBrowserRouter([
       {
         path: "prediction/",
         element: <PredictionDashboard/>
+      },
+      {
+        path: "achievement/",
+        element: <Achievement/>
       },
       {
         path: "knowledge/",

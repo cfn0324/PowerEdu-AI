@@ -1,0 +1,319 @@
+/* 成就页面主容器 */
+.achievement-page {
+  background: #f5f5f5;
+  min-height: 100vh;
+}
+
+/* 等级卡片 */
+.level-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+}
+
+.level-card .ant-card-body {
+  padding: 20px;
+}
+
+.level-content {
+  text-align: center;
+}
+
+.level-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 15px;
+}
+
+.level-badge {
+  display: flex;
+  align-items: center;
+  margin-right: 20px;
+}
+
+.level-text {
+  font-size: 24px;
+  font-weight: bold;
+  margin-left: 8px;
+}
+
+.level-points {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.current-points {
+  color: #ffa940;
+}
+
+.separator {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.next-points {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.level-desc {
+  margin-top: 10px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* 成就进度卡片 */
+.achievement-progress-card .ant-card-head {
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.achievement-item {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.achievement-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.achievement-item.completed {
+  background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+  color: white;
+}
+
+.achievement-item.completed .ant-card-body {
+  color: white;
+}
+
+.achievement-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.achievement-icon {
+  font-size: 24px;
+  margin-right: 12px;
+  color: #1890ff;
+}
+
+.achievement-item.completed .achievement-icon {
+  color: white;
+}
+
+.achievement-info {
+  flex: 1;
+}
+
+.achievement-name {
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.achievement-desc {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.achievement-item.completed .achievement-desc {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.achievement-progress {
+  margin-bottom: 8px;
+}
+
+.achievement-points {
+  text-align: right;
+  font-size: 12px;
+  color: #52c41a;
+  font-weight: bold;
+}
+
+.achievement-item.completed .achievement-points {
+  color: white;
+}
+
+/* 最近成就卡片 */
+.recent-achievements-card .ant-list-item {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 16px 0;
+}
+
+.recent-achievements-card .ant-list-item:last-child {
+  border-bottom: none;
+}
+
+/* 积分历史 */
+.points-history-card .ant-timeline {
+  margin-top: 20px;
+}
+
+.points-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.points-item {
+  margin-left: 10px;
+}
+
+.points-desc {
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.points-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.points-time {
+  font-size: 12px;
+  color: #999;
+}
+
+/* 排行榜 */
+.leaderboard-card .ant-list-item {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 16px 0;
+}
+
+.leaderboard-card .ant-list-item:last-child {
+  border-bottom: none;
+}
+
+.rank-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 16px;
+  color: white;
+}
+
+.rank-badge.rank-1 {
+  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  color: #8b4513;
+}
+
+.rank-badge.rank-2 {
+  background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%);
+  color: #4a4a4a;
+}
+
+.rank-badge.rank-3 {
+  background: linear-gradient(135deg, #cd7f32 0%, #daa520 100%);
+  color: white;
+}
+
+.rank-badge.rank-other {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.leaderboard-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.username {
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.leaderboard-desc {
+  color: #666;
+}
+
+.leaderboard-desc div {
+  margin-bottom: 4px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .achievement-page {
+    padding: 10px;
+  }
+  
+  .level-info {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .level-badge {
+    margin-right: 0;
+  }
+  
+  .achievement-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .achievement-icon {
+    margin-right: 0;
+  }
+  
+  .points-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}
+
+/* 动画效果 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.achievement-item {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.achievement-item:nth-child(even) {
+  animation-delay: 0.1s;
+}
+
+.achievement-item:nth-child(odd) {
+  animation-delay: 0.2s;
+}
+
+/* 成就完成特效 */
+.achievement-item.completed::after {
+  content: '✓';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}

@@ -2,19 +2,54 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTokenStore } from "../stores";
 import { message } from "antd";
-// 自定义的路由守卫 hooks
-function useAuthGuard() {
-  const { auth } = useTokenStore(); // 使用你自己定义的 hooks 获取认证信息
-  const navigate = useNavigate(); // 使用 useNavigate 获取导航函数
+
+/**
+ * 认证守卫Hook - 用于保护需要登录的页面
+ * @param {Object} options - 配置选项
+ * @param {string} options.redirectTo - 未登录时重定向的路径，默认为 '/'
+ * @param {string} options.message - 未登录时显示的消息
+ * @param {boolean} options.silent - 是否静默模式，不显示消息
+ * @returns {Object} - 返回认证状态和用户信息
+ */
+function useAuthGuard(options = {}) {
+  const {
+    redirectTo = '/',
+    message: customMessage = '请先登录后访问此页面',
+    silent = false
+  } = options;
+
+  const { auth } = useTokenStore();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!auth?.token) {
-      message.error("请重新登录");
-      navigate("/"); // 如果未认证，则重定向到指定页面
+      if (!silent) {
+        message.warning(customMessage);
+      }
+      navigate(redirectTo);
     }
-  }, [auth, navigate]); // 依赖项中包含 auth 和 navigate
+  }, [auth, navigate, redirectTo, customMessage, silent]);
 
-  // 可以根据需求返回其他信息或函数
+  return {
+    isAuthenticated: !!auth?.token,
+    user: auth?.user || null,
+    token: auth?.token || null
+  };
 }
+
+/**
+ * 登录检查Hook - 仅检查登录状态，不执行重定向
+ * @returns {Object} - 返回认证状态和用户信息
+ */
+export const useAuth = () => {
+  const { auth } = useTokenStore();
+
+  return {
+    isAuthenticated: !!auth?.token,
+    user: auth?.user || null,
+    token: auth?.token || null,
+    isLoading: false
+  };
+};
 
 export default useAuthGuard;

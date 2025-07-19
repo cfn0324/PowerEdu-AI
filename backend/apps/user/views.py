@@ -116,6 +116,20 @@ def add_user_hub(request, course_id: int, act_type: int):
         if act_type == 1:
             course.study_number += 1
             course.save()
+            
+            # 更新成就系统 - 学习行为
+            try:
+                from apps.user.achievement_service import AchievementService
+                AchievementService.update_study_progress(request.auth, course_id, 30)  # 假设学习30分钟
+            except Exception as e:
+                pass  # 成就系统错误不影响主要功能
+        elif act_type == 2:
+            # 更新成就系统 - 收藏行为
+            try:
+                from apps.user.achievement_service import AchievementService
+                AchievementService.update_favorite_stats(request.auth, course_id)
+            except Exception as e:
+                pass
 
     return R.ok(msg="收藏成功")
 

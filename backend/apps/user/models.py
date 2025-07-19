@@ -43,3 +43,7 @@ class Feedback(models.Model):
         verbose_name = "反馈"
         verbose_name_plural = "反馈管理"
 
+
+# 导入成就相关模型
+from .achievement_models import Achievement, UserAchievement, UserPoints, StudyStats
+

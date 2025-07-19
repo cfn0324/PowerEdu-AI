@@ -13,7 +13,7 @@ import ChapterList from "./chapter";
 import ReactPlayer from "react-player";
 import { Modal } from "antd";
 import CommentList from "./comment";
-import { addActByCourseId } from "../../service";
+import { addActByCourseId, recordStudyActivity } from "../../service";
 import { getImageUrl, getLevel } from "../../tools";
 
 const onChange = (key) => {
@@ -29,6 +29,7 @@ const Detail = () => {
   const [open, setOpen] = useState(false);
   const [videoUrl, setVideoUrl] = useState(null);
   const [currentVideo, setCurrentVideo] = useState(null);
+  const [videoStartTime, setVideoStartTime] = useState(null);
 
   useEffect(() => {
     async function getData() {
@@ -51,7 +52,30 @@ const Detail = () => {
       setOpen(true);
       setVideoUrl(getImageUrl(item.video));
       setCurrentVideo(item);
+      setVideoStartTime(Date.now()); // 记录开始观看时间
     }
+  };
+
+  const handleVideoEnd = async () => {
+    // 视频播放结束，记录学习时长
+    if (videoStartTime) {
+      const studyMinutes = Math.floor((Date.now() - videoStartTime) / (1000 * 60));
+      if (studyMinutes > 0) {
+        try {
+          await recordStudyActivity(parmas.id, studyMinutes);
+          message.success(`学习时长已记录: ${studyMinutes} 分钟`);
+        } catch (error) {
+          console.error('记录学习时长失败:', error);
+        }
+      }
+      setVideoStartTime(null);
+    }
+  };
+
+  const handleModalClose = () => {
+    // 关闭弹窗时也记录学习时长
+    handleVideoEnd();
+    setOpen(false);
   };
 
   const items = [
@@ -130,7 +154,7 @@ const Detail = () => {
       <Modal
         open={open}
         title={currentVideo?.title}
-        onCancel={() => setOpen(false)}
+        onCancel={handleModalClose}
         footer={null}
         destroyOnClose={true}
       >
@@ -139,6 +163,7 @@ const Detail = () => {
           controls={true}
           width="100%"
           height="100%"
+          onEnded={handleVideoEnd}
         />
       </Modal>
     </div>
