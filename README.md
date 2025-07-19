@@ -50,6 +50,9 @@ python admin_manager.py create
 
 # 创建Django超级用户
 python manage.py createsuperuser
+
+# 初始化成就系统
+python manage.py init_achievements
 ```
 ```
 
@@ -58,6 +61,7 @@ python manage.py createsuperuser
 cd backend
 python manage.py migrate
 python manage.py init_data  # 创建默认admin用户
+python manage.py init_achievements  # 初始化成就系统
 python manage.py runserver
 ```
 
@@ -95,7 +99,7 @@ npm run dev
 - **密码**: admin123
 - **功能**: 数据库管理、系统配置、模型管理等底层管理
 
-> 注意：首次运行时，启动脚本会自动执行 `python manage.py init_data` 命令来创建默认账户。
+> 注意：首次运行时，启动脚本会自动执行 `python manage.py init_data` 和 `python manage.py init_achievements` 命令来创建默认账户和初始化成就系统。
 
 ### 🛠️ 管理员工具
 

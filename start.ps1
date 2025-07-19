@@ -45,6 +45,7 @@ Write-Host "[4/6] Initializing Django database..." -ForegroundColor Yellow
 Set-Location backend
 python manage.py migrate --verbosity=0
 python manage.py init_data
+python manage.py init_achievements
 Write-Host "SUCCESS: Database initialized" -ForegroundColor Green
 
 # Start Django backend
