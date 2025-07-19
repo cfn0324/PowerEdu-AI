@@ -62,10 +62,13 @@ const Detail = () => {
       const studyMinutes = Math.floor((Date.now() - videoStartTime) / (1000 * 60));
       if (studyMinutes > 0) {
         try {
+          console.log(`记录学习时长: 课程ID=${parmas.id}, 时长=${studyMinutes}分钟`);
           await recordStudyActivity(parmas.id, studyMinutes);
           message.success(`学习时长已记录: ${studyMinutes} 分钟`);
         } catch (error) {
           console.error('记录学习时长失败:', error);
+          // 不显示错误信息给用户，避免影响学习体验
+          // message.error('记录学习时长失败');
         }
       }
       setVideoStartTime(null);
