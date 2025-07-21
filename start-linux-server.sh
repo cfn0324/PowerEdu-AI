@@ -36,16 +36,122 @@ log_error() {
 check_command() {
     if ! command -v $1 &> /dev/null; then
         log_error "$1 未安装，请先安装 $1"
-        exit 1
+        return 1
+    fi
+    return 0
+}
+
+# 安装系统依赖
+install_system_deps() {
+    log_info "检测并安装系统依赖..."
+    
+    # 检测操作系统
+    if command -v apt-get &> /dev/null; then
+        # Ubuntu/Debian系统
+        log_info "检测到Ubuntu/Debian系统，安装必要依赖..."
+        
+        # 更新包索引
+        sudo apt-get update -qq
+        
+        # 安装基础依赖
+        sudo apt-get install -y \
+            python3 \
+            python3-pip \
+            python3-venv \
+            python3-dev \
+            build-essential \
+            curl \
+            lsof \
+            2>/dev/null || {
+            log_warning "部分系统依赖安装失败，尝试继续..."
+        }
+        
+        # 检查并安装Node.js
+        if ! check_command node; then
+            log_info "安装Node.js..."
+            curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash - 2>/dev/null || {
+                log_warning "Node.js官方源安装失败，尝试使用系统源..."
+                sudo apt-get install -y nodejs npm 2>/dev/null || {
+                    log_error "Node.js安装失败，请手动安装"
+                    exit 1
+                }
+            }
+        fi
+        
+    elif command -v yum &> /dev/null; then
+        # CentOS/RHEL系统
+        log_info "检测到CentOS/RHEL系统，安装必要依赖..."
+        
+        sudo yum update -y -q
+        sudo yum install -y \
+            python3 \
+            python3-pip \
+            python3-devel \
+            gcc \
+            gcc-c++ \
+            make \
+            curl \
+            lsof \
+            2>/dev/null || {
+            log_warning "部分系统依赖安装失败，尝试继续..."
+        }
+        
+        # 安装Node.js
+        if ! check_command node; then
+            log_info "安装Node.js..."
+            curl -fsSL https://rpm.nodesource.com/setup_lts.x | sudo bash - 2>/dev/null || {
+                sudo yum install -y nodejs npm 2>/dev/null || {
+                    log_error "Node.js安装失败，请手动安装"
+                    exit 1
+                }
+            }
+        fi
+        
+    elif command -v dnf &> /dev/null; then
+        # Fedora系统
+        log_info "检测到Fedora系统，安装必要依赖..."
+        
+        sudo dnf update -y -q
+        sudo dnf install -y \
+            python3 \
+            python3-pip \
+            python3-devel \
+            gcc \
+            gcc-c++ \
+            make \
+            curl \
+            lsof \
+            nodejs \
+            npm \
+            2>/dev/null || {
+            log_warning "部分系统依赖安装失败，尝试继续..."
+        }
+        
+    else
+        log_warning "未检测到支持的包管理器，请手动安装依赖"
     fi
 }
 
 # 检查必要的命令
 log_info "检查系统环境..."
-check_command python3
-check_command pip3
-check_command node
-check_command npm
+
+# 如果缺少必要命令，尝试自动安装
+MISSING_DEPS=false
+if ! check_command python3; then MISSING_DEPS=true; fi
+if ! check_command pip3; then MISSING_DEPS=true; fi
+if ! check_command node; then MISSING_DEPS=true; fi
+if ! check_command npm; then MISSING_DEPS=true; fi
+
+if $MISSING_DEPS; then
+    log_warning "检测到缺少必要依赖，尝试自动安装..."
+    install_system_deps
+fi
+
+# 再次检查
+check_command python3 || exit 1
+check_command pip3 || exit 1
+check_command node || exit 1
+check_command npm || exit 1
 
 # 获取项目根目录
 PROJECT_ROOT=$(cd "$(dirname "$0")" && pwd)

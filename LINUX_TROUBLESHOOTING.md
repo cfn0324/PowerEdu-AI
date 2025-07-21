@@ -2,6 +2,31 @@
 
 ## 🔍 常见问题与解决方案
 
+### 0. Python虚拟环境创建失败
+
+**问题描述**: `The virtual environment was not created successfully because ensurepip is not available`
+
+**原因**: 系统缺少`python3-venv`包或其他Python开发依赖
+
+**解决方案**:
+```bash
+# 方案一：自动安装所有系统依赖（推荐）
+chmod +x install-system-deps.sh && sudo ./install-system-deps.sh
+
+# 方案二：手动安装Python venv包
+# Ubuntu/Debian
+sudo apt update && sudo apt install python3.10-venv python3-dev build-essential
+
+# CentOS/RHEL
+sudo yum install python3-devel gcc gcc-c++ make
+
+# Fedora
+sudo dnf install python3-devel gcc gcc-c++ make
+
+# 方案三：更新启动脚本会自动尝试安装依赖
+./start-linux-server.sh
+```
+
 ### 1. `spawn xdg-open ENOENT` 错误
 
 **问题描述**: 在没有图形界面的Linux服务器上启动前端时出现此错误

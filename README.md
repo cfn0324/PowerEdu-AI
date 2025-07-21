@@ -127,6 +127,9 @@ pip install -r requirements_windows.txt
 git clone https://github.com/cfn0324/PowerEdu-AI.git
 cd PowerEdu-AI
 
+# 🔧 如果是全新的Linux服务器，先安装系统依赖
+chmod +x install-system-deps.sh && sudo ./install-system-deps.sh
+
 # 设置权限并启动
 chmod +x start.sh && ./start.sh
 
@@ -142,6 +145,8 @@ chmod +x start-linux-server.sh && ./start-linux-server.sh
 ```
 
 > 💡 **Linux提示**: 
+> - **全新服务器**: 先运行`sudo ./install-system-deps.sh`安装系统依赖
+> - 如果遇到`python3-venv`错误，请运行`sudo apt install python3.10-venv`（Ubuntu/Debian）
 > - 如果遇到npm依赖冲突，请在`frontend`目录下运行`./fix-deps.sh`修复
 > - 如果遇到`spawn xdg-open ENOENT`错误，说明是服务器环境，请使用服务器专用启动脚本
 > - **推荐**: 使用`./start-linux-server.sh`一键解决所有服务器环境问题
