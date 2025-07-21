@@ -18,7 +18,7 @@ const ChapterItem = ({ item, clickVideo, index }) => {
             <a className="video">
               <VideoCameraFilled />
               <p>
-                {index + 1}. {el.title} ({el?.time ?? "06:33"})
+                {index + 1}. {el.title}
               </p>
             </a>
           </div>
