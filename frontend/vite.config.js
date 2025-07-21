@@ -32,7 +32,7 @@ export default defineConfig({
         manualChunks: {
           vendor: ['react', 'react-dom'],
           antd: ['antd'],
-          charts: ['plotly.js']
+          charts: ['echarts', 'echarts-for-react']
         }
       }
     }

@@ -1,0 +1,20 @@
+[Unit]
+Description=PowerEdu-AI Django Backend
+After=network.target
+
+[Service]
+Type=exec
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/poweredu-ai/backend
+Environment=DJANGO_SETTINGS_MODULE=edu.settings_production
+ExecStart=/var/www/poweredu-ai/venv/bin/python manage.py runserver 127.0.0.1:8000
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+
+# 环境变量文件
+EnvironmentFile=/var/www/poweredu-ai/.env.production
+
+[Install]
+WantedBy=multi-user.target

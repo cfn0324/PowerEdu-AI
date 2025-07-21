@@ -37,7 +37,54 @@ try {
 
 # Install Python dependencies
 Write-Host "[3/6] Installing Python dependencies..." -ForegroundColor Yellow
-pip install -r requirements.txt -q
+
+# Create temporary requirements file for Windows (excluding problematic packages)
+$windowsReq = @"
+# Django框架
+Django==4.2.7
+django-cors-headers==4.3.1
+django-mdeditor==0.1.20
+django-ninja==1.0.1
+Pillow>=10.0.0
+pycryptodome==3.19.0
+PyJWT==2.8.0
+
+# 数据处理
+pandas>=2.0.0
+numpy>=1.24.0
+
+# HTTP客户端
+aiohttp>=3.8.0
+
+# 机器学习
+scikit-learn>=1.3.0,<1.6.0
+xgboost>=2.0.0
+joblib>=1.3.0
+
+# 数据可视化
+plotly>=5.17.0
+
+# 生产环境服务器
+gunicorn>=21.2.0
+whitenoise>=6.6.0
+
+# RAG相关依赖
+PyPDF2>=3.0.0
+python-docx>=0.8.11
+markdown>=3.5.0
+beautifulsoup4>=4.12.0
+langchain>=0.1.0
+jieba>=0.42.1
+openai>=1.0.0
+anthropic>=0.8.0
+zhipuai>=2.0.0
+google-generativeai>=0.3.0
+requests>=2.31.0
+"@
+
+$windowsReq | Out-File -FilePath "requirements_windows.txt" -Encoding UTF8
+pip install -r requirements_windows.txt -q
+Remove-Item "requirements_windows.txt" -ErrorAction SilentlyContinue
 Write-Host "SUCCESS: Python dependencies installed" -ForegroundColor Green
 
 # Initialize Django database
@@ -61,7 +108,14 @@ Write-Host "[6/6] Starting React frontend..." -ForegroundColor Yellow
 Set-Location frontend
 if (!(Test-Path "node_modules")) {
     Write-Host "  Installing frontend dependencies..." -ForegroundColor Gray
-    npm install --silent
+    npm install --legacy-peer-deps --silent
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  Retrying with cache clean..." -ForegroundColor Yellow
+        npm cache clean --force
+        Remove-Item "node_modules" -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item "package-lock.json" -Force -ErrorAction SilentlyContinue
+        npm install --legacy-peer-deps --silent
+    }
 }
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$(Get-Location)'; npm run dev" -WindowStyle Normal
 Write-Host "SUCCESS: Frontend service started" -ForegroundColor Green

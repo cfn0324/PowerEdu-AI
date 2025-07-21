@@ -110,7 +110,12 @@ cd PowerEdu-AI
 
 # 一键启动（自动安装依赖并启动服务）
 .\start.ps1
+
+# 或者手动修复依赖问题（如果遇到psycopg2-binary编译错误）
+pip install -r requirements_windows.txt
 ```
+
+> 💡 **Windows提示**: 如果遇到`psycopg2-binary`编译错误，请使用`requirements_windows.txt`替代`requirements.txt`
 
 </details>
 
@@ -124,7 +129,13 @@ cd PowerEdu-AI
 
 # 设置权限并启动
 chmod +x start.sh && ./start.sh
+
+# 或者手动修复前端依赖冲突（如果遇到ERESOLVE错误）
+cd frontend
+chmod +x fix-deps.sh && ./fix-deps.sh
 ```
+
+> 💡 **Linux提示**: 如果遇到npm依赖冲突，请在`frontend`目录下运行`./fix-deps.sh`修复
 
 </details>
 

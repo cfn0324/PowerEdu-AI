@@ -1,0 +1,23 @@
+[Unit]
+Description=PowerEdu-AI Django Application with Gunicorn
+After=network.target
+
+[Service]
+Type=exec
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/poweredu-ai/backend
+Environment=DJANGO_SETTINGS_MODULE=edu.settings_production
+ExecStart=/var/www/poweredu-ai/venv/bin/gunicorn --config gunicorn.conf.py edu.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+Restart=on-failure
+RestartSec=5
+
+# 环境变量文件
+EnvironmentFile=/var/www/poweredu-ai/.env.production
+
+[Install]
+WantedBy=multi-user.target

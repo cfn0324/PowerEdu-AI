@@ -1,0 +1,32 @@
+# PowerEdu-AI 前端Dockerfile
+FROM node:18-alpine as builder
+
+# 设置工作目录
+WORKDIR /app
+
+# 复制package文件
+COPY frontend/package*.json ./
+
+# 安装依赖
+RUN npm ci --only=production
+
+# 复制前端代码
+COPY frontend/ .
+
+# 构建应用
+RUN npm run build
+
+# 生产阶段
+FROM nginx:alpine
+
+# 复制构建结果
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# 复制Nginx配置
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# 暴露端口
+EXPOSE 80
+
+# 启动Nginx
+CMD ["nginx", "-g", "daemon off;"]
