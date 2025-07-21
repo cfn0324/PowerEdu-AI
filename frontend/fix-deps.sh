@@ -37,8 +37,9 @@ if [ -d "node_modules" ]; then
     echo "✅ 依赖安装完成"
     echo ""
     echo "📝 可以使用以下命令启动："
-    echo "   npm run dev    # 开发模式"
-    echo "   npm run build  # 生产构建"
+    echo "   npm run dev        # 开发模式（本地）"
+    echo "   npm run dev:server # 服务器模式（无自动打开浏览器）"
+    echo "   npm run build      # 生产构建"
 else
     echo "❌ 依赖安装失败"
     exit 1

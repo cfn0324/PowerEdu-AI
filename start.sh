@@ -44,7 +44,7 @@ npm install
 
 # 启动React前端
 echo "🚀 启动React前端服务..."
-npm run dev &
+npm run dev:server &
 FRONTEND_PID=$!
 
 cd ..

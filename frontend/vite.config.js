@@ -9,7 +9,7 @@ export default defineConfig({
   server: {
     host: "localhost",
     port: 5173,
-    open: true,  // 自动打开浏览器
+    open: false,  // 禁用自动打开浏览器（解决服务器环境问题）
     
     // API代理配置
     proxy: {

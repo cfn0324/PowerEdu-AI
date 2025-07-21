@@ -203,7 +203,7 @@ cd frontend
 sudo -u www-data rm -rf node_modules package-lock.json
 # 使用 legacy-peer-deps 解决兼容性问题
 sudo -u www-data npm install --legacy-peer-deps
-sudo -u www-data npm run build
+sudo -u www-data npm run build:server
 cd ..
 
 # 数据库迁移
@@ -272,10 +272,19 @@ sudo crontab -e
    cd /var/www/poweredu-ai/frontend
    sudo -u www-data rm -rf node_modules package-lock.json
    sudo -u www-data npm install --legacy-peer-deps
-   sudo -u www-data npm run build
+   sudo -u www-data npm run build:server
    ```
 
-6. **Node.js 版本问题**
+6. **xdg-open 错误（服务器环境）**
+   ```bash
+   # 错误：Error: spawn xdg-open ENOENT
+   # 原因：服务器没有图形界面，无法自动打开浏览器
+   # 解决：使用服务器专用配置
+   cd /var/www/poweredu-ai/frontend
+   sudo -u www-data npm run dev:server  # 而不是 npm run dev
+   ```
+
+7. **Node.js 版本问题**
    ```bash
    # 如果 Node.js 版本过低，升级到 Node.js 16+
    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -

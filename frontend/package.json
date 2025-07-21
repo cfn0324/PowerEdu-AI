@@ -14,8 +14,10 @@
   },
   "scripts": {
     "dev": "vite --host",
+    "dev:server": "vite --config vite.config.server.js",
     "build": "vite build",
     "build:prod": "vite build --config vite.config.production.js",
+    "build:server": "vite build --config vite.config.server.js",
     "build:legacy": "npm install --legacy-peer-deps && vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
