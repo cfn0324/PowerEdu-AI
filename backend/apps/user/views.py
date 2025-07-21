@@ -117,19 +117,38 @@ def add_user_hub(request, course_id: int, act_type: int):
             course.study_number += 1
             course.save()
             
-            # 更新成就系统 - 学习行为
+            # 更新成就系统 - 学习行为（增强错误处理）
             try:
                 from apps.user.achievement_service import AchievementService
-                AchievementService.update_study_progress(request.auth, course_id, 30)  # 假设学习30分钟
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(f"开始更新学习进度 - 用户ID: {request.auth}, 课程ID: {course_id}")
+                
+                # 分步骤执行，便于排查问题
+                AchievementService.update_study_progress(request.auth, course_id, 0)  # 先不记录学习时长，避免复杂计算
+                logger.info(f"学习进度更新成功 - 用户ID: {request.auth}, 课程ID: {course_id}")
+                
             except Exception as e:
-                pass  # 成就系统错误不影响主要功能
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"成就系统更新失败 - 用户ID: {request.auth}, 课程ID: {course_id}, 错误: {str(e)}")
+                # 成就系统错误不影响主要功能，但记录详细错误信息
         elif act_type == 2:
-            # 更新成就系统 - 收藏行为
+            # 更新成就系统 - 收藏行为（增强错误处理）
             try:
                 from apps.user.achievement_service import AchievementService
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(f"开始更新收藏统计 - 用户ID: {request.auth}, 课程ID: {course_id}")
+                
                 AchievementService.update_favorite_stats(request.auth, course_id)
+                logger.info(f"收藏统计更新成功 - 用户ID: {request.auth}, 课程ID: {course_id}")
+                
             except Exception as e:
-                pass
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"收藏统计更新失败 - 用户ID: {request.auth}, 课程ID: {course_id}, 错误: {str(e)}")
+                # 成就系统错误不影响主要功能
 
     return R.ok(msg="收藏成功")
 

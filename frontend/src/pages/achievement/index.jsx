@@ -15,9 +15,7 @@ import {
   Empty,
   Spin,
   Button,
-  message,
-  Switch,
-  Alert
+  message
 } from 'antd';
 import {
   TrophyOutlined,
@@ -33,7 +31,6 @@ import { getAchievementSummary, getLeaderboard, getUserPoints } from '../../serv
 import { useAuth } from '../../hooks/useAuthGuard';
 import LoginPrompt from '../../components/common/LoginPrompt';
 import { useNavigate } from 'react-router-dom';
-import StaticAchievement from './StaticAchievement';
 import './index.css';
 
 const { TabPane } = Tabs;
@@ -73,7 +70,6 @@ const Achievement = () => {
   const [leaderboard, setLeaderboard] = useState([]);
   const [pointsHistory, setPointsHistory] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
-  const [useStaticMode, setUseStaticMode] = useState(false);
   
   // 获取认证状态
   const { isAuthenticated, user } = useAuth();
@@ -85,11 +81,8 @@ const Achievement = () => {
       return; // 让组件渲染处理未登录状态
     }
     
-    // 只有在非静态模式下才加载数据
-    if (!useStaticMode) {
-      loadData();
-    }
-  }, [isAuthenticated, useStaticMode]);
+    loadData();
+  }, [isAuthenticated]);
 
   const loadData = async () => {
     // 再次检查认证状态
@@ -167,37 +160,6 @@ const Achievement = () => {
     }
   };
 
-  // 如果启用静态模式，直接返回静态组件
-  if (useStaticMode) {
-    return (
-      <div style={{ padding: '20px' }}>
-        <div style={{ marginBottom: '16px' }}>
-          <Alert
-            message="静态演示模式"
-            description="当前使用静态数据展示成就系统功能，您可以切换到动态模式尝试连接后端API。"
-            type="info"
-            showIcon
-            action={
-              <Switch
-                checked={useStaticMode}
-                onChange={(checked) => {
-                  setUseStaticMode(checked);
-                  if (!checked) {
-                    setLoading(true);
-                    loadData();
-                  }
-                }}
-                checkedChildren="静态"
-                unCheckedChildren="动态"
-              />
-            }
-          />
-        </div>
-        <StaticAchievement />
-      </div>
-    );
-  }
-
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
@@ -237,11 +199,8 @@ const Achievement = () => {
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         >
           <div style={{ marginTop: '16px' }}>
-            <Button type="primary" onClick={() => window.location.reload()} style={{ marginRight: '8px' }}>
+            <Button type="primary" onClick={() => window.location.reload()}>
               重新加载
-            </Button>
-            <Button onClick={() => setUseStaticMode(true)}>
-              使用静态演示
             </Button>
           </div>
         </Empty>
@@ -510,23 +469,6 @@ const Achievement = () => {
 
   return (
     <div className="achievement-page" style={{ padding: '20px' }}>
-      <div style={{ marginBottom: '16px' }}>
-        <Alert
-          message="动态数据模式"
-          description="当前连接后端API加载真实数据。如果遇到问题，可以切换到静态演示模式。"
-          type="success"
-          showIcon
-          action={
-            <Switch
-              checked={useStaticMode}
-              onChange={(checked) => setUseStaticMode(checked)}
-              checkedChildren="静态"
-              unCheckedChildren="动态"
-            />
-          }
-        />
-      </div>
-      
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h2 style={{ margin: 0, color: '#0a2d5f' }}>
           <TrophyOutlined style={{ marginRight: '8px' }} />

@@ -41,7 +41,8 @@ class StudyStatsSchema(Schema):
     current_level: int
     comments_count: int
     favorites_count: int
-    last_study_date: Optional[str]
+    last_study_date: Optional[str] = None
+    updated_at: datetime
 
 
 class AchievementProgressSchema(Schema):
